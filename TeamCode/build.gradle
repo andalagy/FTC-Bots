@@ -1,0 +1,15 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'org.firstinspires.ftc'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+    // TODO: Add FTC SDK dependencies or local module references once SDK is available.
+}

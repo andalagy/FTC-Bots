@@ -1,0 +1,15 @@
+# Android / Gradle
+.gradle/
+build/
+**/build/
+gradle/wrapper/*.jar
+gradle/wrapper/gradle-*
+local.properties
+*.iml
+.idea/
+.DS_Store
+captures/
+outputs/
+
+# FTC common
+.externalNativeBuild/
