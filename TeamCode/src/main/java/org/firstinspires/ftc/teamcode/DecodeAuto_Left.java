@@ -4,12 +4,12 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.teamcode.DriveSubsystem;
-import org.firstinspires.ftc.teamcode.GateSubsystem;
-import org.firstinspires.ftc.teamcode.IntakeSubsystem;
-import org.firstinspires.ftc.teamcode.SlideSubsystem;
-import org.firstinspires.ftc.teamcode.VisionSubsystem;
-import org.firstinspires.ftc.teamcode.VisionSubsystem.DetectedMotif;
+import org.firstinspires.ftc.teamcode.subsystems.DriveSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.GateSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
 
 @Autonomous(name = "Decode Auto Left", group = "Main")
 public class DecodeAuto_Left extends LinearOpMode {

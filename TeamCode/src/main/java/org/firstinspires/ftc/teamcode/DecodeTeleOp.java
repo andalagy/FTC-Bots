@@ -4,10 +4,10 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.teamcode.DriveSubsystem;
-import org.firstinspires.ftc.teamcode.GateSubsystem;
-import org.firstinspires.ftc.teamcode.IntakeSubsystem;
-import org.firstinspires.ftc.teamcode.SlideSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.DriveSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.GateSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem;
 
 @TeleOp(name = "Decode TeleOp", group = "Main")
 public class DecodeTeleOp extends LinearOpMode {
