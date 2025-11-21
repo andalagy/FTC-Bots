@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
-/** Controls a simple gate/bucket servo for scoring ARTIFACTS. */
+/** little trap door buddy for flinging cargo out of the bucket ★ */
 public class GateSubsystem {
     private final Servo gateServo;
 
@@ -21,7 +21,7 @@ public class GateSubsystem {
         gateServo.setPosition(RobotConstants.GATE_CLOSED);
     }
 
-    /** Quickly opens then closes the gate. Call periodically in loop to allow time to move. */
+    /** quick dump flick; call in a loop so the servo actually gets time to move. */
     public void dump() {
         open();
     }

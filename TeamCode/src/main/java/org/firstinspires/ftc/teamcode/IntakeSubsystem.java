@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
-/** Simple intake control for pulling ARTIFACTS in or spitting them out. */
+/** ball suck/release gadget so i remember which trigger does what ☆ */
 public class IntakeSubsystem {
     private final DcMotor intakeMotor;
 

@@ -30,7 +30,7 @@ public class DecodeAuto_Left extends LinearOpMode {
 
         gate.close();
 
-        // Prestart vision detection
+        // peek at vision before we ever hit start ☆
         DetectedMotif detectedMotif = vision.detectMotif();
         telemetry.addData("Detected Motif", detectedMotif);
         telemetry.update();
@@ -39,38 +39,38 @@ public class DecodeAuto_Left extends LinearOpMode {
 
         if (isStopRequested()) return;
 
-        // Fix heading so field-centric math aligns to field
+        // zero out the heading so field-centric math matches reality ->
         drive.resetHeading();
 
-        // 1. Leave the Launch Line
+        // 1. leave the Launch Line
         driveForTime(0, 0.6, 0, 1.0);
 
-        // 2. Move toward alliance goal and raise slides
+        // 2. shuffle toward the goal while cranking the slides up :)
         slides.goToHigh();
         driveForTime(0, 0.5, 0, 0.7);
 
-        // 3. Score preloaded artifacts
+        // 3. dump the preloaded artifacts ~
         sleep(300);
         gate.open();
         sleep(600);
         gate.close();
 
-        // 4. Optional: nudge to place artifacts on ramp based on motif
+        // 4. optional nudge based on which motif we spotted ★
         if (detectedMotif == DetectedMotif.MOTIF_B) {
-            driveForTime(0.4, 0, 0, 0.6); // strafe right slightly
+            driveForTime(0.4, 0, 0, 0.6); // strafe right slightly :)
         } else if (detectedMotif == DetectedMotif.MOTIF_C) {
-            driveForTime(-0.4, 0, 0, 0.6); // strafe left slightly
+            driveForTime(-0.4, 0, 0, 0.6); // strafe left slightly :)
         }
 
-        // 5. Lower slides for travel and move to base/park
+        // 5. slides down and a gentle retreat to the base/park
         slides.goToIntake();
         driveForTime(0, -0.5, 0, 1.1);
 
-        // Hold position
+        // hold position ☆
         drive.stop();
     }
 
-    /** Simple helper to drive using field-centric power for a duration. */
+    /** lazy timer drive so i don't rewrite the same loop every step. */
     private void driveForTime(double x, double y, double rotation, double seconds) {
         ElapsedTime timer = new ElapsedTime();
         timer.reset();

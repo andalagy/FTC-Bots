@@ -1,11 +1,11 @@
 package org.firstinspires.ftc.teamcode;
 
 /**
- * Central place for tuning hardware names, directions, power limits, and mechanism setpoints.
- * Update values here to match your robot configuration.
+ * scribble pad for hardware names, directions, and the latest "feels right" numbers ☆
+ * flip things here whenever the wiring or vibes change and hope future-me remembers.
  */
 public class RobotConstants {
-    // Motor names in the Robot Configuration
+    // motor names as i typed them into the Robot Configuration screen ->
     public static final String FRONT_LEFT_NAME = "frontLeft";
     public static final String FRONT_RIGHT_NAME = "frontRight";
     public static final String BACK_LEFT_NAME = "backLeft";
@@ -19,25 +19,25 @@ public class RobotConstants {
     public static final String IMU_NAME = "imu";
     public static final String WEBCAM_NAME = "Webcam 1";
 
-    // Drive speed scales
-    public static final double NORMAL_SPEED = 0.9;   // Full power scale for teleop
-    public static final double SLOW_SPEED = 0.4;     // Precision mode when holding a bumper
+    // drive speed scales
+    public static final double NORMAL_SPEED = 0.9;   // full power scale for teleop ☆
+    public static final double SLOW_SPEED = 0.4;     // precision mode when holding a bumper
 
-    // Slide target positions (encoder ticks). Tune for your robot.
+    // slide target positions (encoder ticks). tune for your robot.
     public static final int SLIDE_INTAKE = 0;
-    public static final int SLIDE_LOW = 850;      // Example values
+    public static final int SLIDE_LOW = 850;      // rough guess, tweak as needed
     public static final int SLIDE_HIGH = 1600;
-    public static final int SLIDE_MAX = 1900;     // Keep below mechanical limit
+    public static final int SLIDE_MAX = 1900;     // don't let the slides yeet themselves
 
-    // Slide motion settings
+    // slide motion settings
     public static final double SLIDE_POWER = 1.0;
-    public static final double SLIDE_HOLD_POWER = 0.05; // Small holding power for manual modes
+    public static final double SLIDE_HOLD_POWER = 0.05; // tiny holding power for manual modes :)
 
-    // Gate servo positions (0-1). Tune for your hardware.
+    // gate servo positions (0-1). tune for your hardware.
     public static final double GATE_CLOSED = 0.15;
     public static final double GATE_OPEN = 0.65;
 
-    // Vision defaults
+    // vision defaults
     public enum Motif {
         MOTIF_A, MOTIF_B, MOTIF_C
     }
