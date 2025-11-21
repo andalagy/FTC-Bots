@@ -1,15 +1,33 @@
 plugins {
-    id 'java-library'
+    id 'com.android.library'
 }
 
 group = 'org.firstinspires.ftc'
 version = '1.0.0'
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+android {
+    namespace 'org.firstinspires.ftc.teamcode'
+    compileSdkVersion 33
+
+    defaultConfig {
+        minSdkVersion 24
+        targetSdkVersion 33
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
 }
 
 dependencies {
-    // TODO: Add FTC SDK dependencies or local module references once SDK is available.
+    implementation 'org.firstinspires.ftc:RobotCore:9.2.0'
+    implementation 'org.firstinspires.ftc:Hardware:9.2.0'
+    implementation 'org.firstinspires.ftc:FtcCommon:9.2.0'
 }
