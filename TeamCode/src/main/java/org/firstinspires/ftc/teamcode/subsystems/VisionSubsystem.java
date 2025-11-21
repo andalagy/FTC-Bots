@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
 /**
- * fake eyeballs for guessing the OBELISK motif until a real pipeline shows up ☆
+ * fake eyeballs for guessing the OBELISK motif until a real pipeline shows up
  * rip this out for EasyOpenCV or whatever once i pick a camera brain.
  */
 public class VisionSubsystem {
@@ -17,7 +17,7 @@ public class VisionSubsystem {
     }
 
     public VisionSubsystem(HardwareMap hardwareMap) {
-        // todo: wire up the camera + pipeline once i pick one (hardwareMap.get(WebcamName.class, RobotConstants.WEBCAM_NAME)) :)
+        // TODO: wire up the camera + pipeline once i pick one (hardwareMap.get(WebcamName.class, RobotConstants.WEBCAM_NAME)) :)
     }
 
     /**
