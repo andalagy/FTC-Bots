@@ -7,8 +7,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
 /**
- * Controls a pair of slide/arm motors using RUN_TO_POSITION for simple preset heights.
- * Tune encoder targets in RobotConstants to match your hardware.
+ * slide babysitter: tells both motors where to park and hopes they listen ☆
+ * tweak the ticks in RobotConstants whenever the real robot complains.
  */
 public class SlideSubsystem {
     private final DcMotor leftSlide;
@@ -18,7 +18,7 @@ public class SlideSubsystem {
         leftSlide = hardwareMap.get(DcMotor.class, RobotConstants.LEFT_SLIDE_NAME);
         rightSlide = hardwareMap.get(DcMotor.class, RobotConstants.RIGHT_SLIDE_NAME);
 
-        // Reverse one motor if the slides are mirrored
+        // flip one side because my slides are mirrored in the real world ->
         leftSlide.setDirection(DcMotorSimple.Direction.REVERSE);
         rightSlide.setDirection(DcMotorSimple.Direction.FORWARD);
 

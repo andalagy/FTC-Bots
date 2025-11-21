@@ -35,9 +35,9 @@ public class DecodeTeleOp extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            // ---- Drive (field-centric) ----
-            double x = gamepad1.left_stick_x; // strafe
-            double y = -gamepad1.left_stick_y; // forward is negative on stick
+            // ---- drive stuff (field-centric vibes) ---- ★
+            double x = gamepad1.left_stick_x; // strafe lane
+            double y = -gamepad1.left_stick_y; // ftc decided forward is negative, go figure :)
             double rotation = gamepad1.right_stick_x;
             boolean slow = gamepad1.left_bumper || gamepad1.right_bumper;
 
@@ -46,7 +46,7 @@ public class DecodeTeleOp extends LinearOpMode {
             }
             drive.drive(x, y, rotation, slow);
 
-            // ---- Intake ----
+            // ---- intake (aka vacuum) ---- ☆
             if (gamepad2.right_trigger > 0.3) {
                 intake.intakeIn();
             } else if (gamepad2.left_trigger > 0.3) {
@@ -55,7 +55,7 @@ public class DecodeTeleOp extends LinearOpMode {
                 intake.stop();
             }
 
-            // ---- Slides presets ----
+            // ---- slides presets (lazy buttons) ---- ~
             if (gamepad2.dpad_down) {
                 slides.goToIntake();
             } else if (gamepad2.dpad_left) {
@@ -66,7 +66,7 @@ public class DecodeTeleOp extends LinearOpMode {
                 slides.goToMax();
             }
 
-            // ---- Gate ----
+            // ---- gate (the little trap door) ---- ->
             if (gamepad2.a) {
                 gate.open();
                 dumping = false;
@@ -74,7 +74,7 @@ public class DecodeTeleOp extends LinearOpMode {
                 gate.close();
                 dumping = false;
             } else if (gamepad2.y && !dumping) {
-                // Start a quick dump: open for 0.4s then close
+                // start a quick dump: pop it open for 0.4s then slam it shut
                 gate.open();
                 dumpTimer.reset();
                 dumping = true;

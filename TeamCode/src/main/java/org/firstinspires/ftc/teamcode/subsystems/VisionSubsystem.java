@@ -5,8 +5,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
 /**
- * Stub vision subsystem for detecting the OBELISK motif pattern.
- * Replace fake detection with your preferred vision pipeline (e.g., EasyOpenCV).
+ * fake eyeballs for guessing the OBELISK motif until a real pipeline shows up ☆
+ * rip this out for EasyOpenCV or whatever once i pick a camera brain.
  */
 public class VisionSubsystem {
 
@@ -17,14 +17,14 @@ public class VisionSubsystem {
     }
 
     public VisionSubsystem(HardwareMap hardwareMap) {
-        // TODO: Initialize camera and pipeline using hardwareMap.get(WebcamName.class, RobotConstants.WEBCAM_NAME)
+        // todo: wire up the camera + pipeline once i pick one (hardwareMap.get(WebcamName.class, RobotConstants.WEBCAM_NAME)) :)
     }
 
     /**
-     * Fake detection placeholder. Replace with real vision logic.
+     * make-believe detection until the camera does something smarter ~
      */
     public DetectedMotif detectMotif() {
-        // TODO: return live result from pipeline
+        // todo: return the live result from whatever pipeline replaces this
         return DetectedMotif.MOTIF_A;
     }
 }

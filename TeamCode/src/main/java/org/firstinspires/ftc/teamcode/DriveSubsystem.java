@@ -11,9 +11,9 @@ import com.qualcomm.robotcore.hardware.IMU;
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
 /**
- * Handles mecanum drive with field-centric control using the built-in IMU.
- * Field-centric = left stick always moves robot relative to the field instead of robot heading.
- * Heading can be reset during TeleOp (e.g., when the driver wants "forward" to match field).
+ * mecanum brain dump ☆ imu keeps me pointed, math keeps the wheels honest.
+ * field-centric to me = the sticks are glued to the field, not the robot.
+ * i reset heading whenever "forward" stops feeling forward anymore.
  */
 public class DriveSubsystem {
     private final DcMotor frontLeft;
@@ -22,7 +22,7 @@ public class DriveSubsystem {
     private final DcMotor backRight;
     private final IMU imu;
 
-    private double headingOffset = 0; // Used to zero the heading during TeleOp
+    private double headingOffset = 0; // little offset knob so i can re-zero during TeleOp ★
 
     public DriveSubsystem(HardwareMap hardwareMap) {
         frontLeft = hardwareMap.get(DcMotor.class, RobotConstants.FRONT_LEFT_NAME);
@@ -39,22 +39,22 @@ public class DriveSubsystem {
         backRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         imu = hardwareMap.get(IMU.class, RobotConstants.IMU_NAME);
-        // Set hub mounting orientation for accurate field-centric yaw
+        // tell the hub how it's actually bolted on so yaw numbers aren't wacky ->
         IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
                 LogoFacingDirection.UP, UsbFacingDirection.FORWARD));
         imu.initialize(parameters);
     }
 
     /**
-     * Drives the robot using field-centric mecanum math.
+     * field drive cheat sheet so i don't overthink the math mid-match ~
      * @param x strafe input (-1 to 1)
      * @param y forward input (-1 to 1)
      * @param rotation rotation input (-1 to 1)
-     * @param slowMode if true, scales power for precision
+     * @param slowMode if true, scales power when i want to be gentle
      */
     public void drive(double x, double y, double rotation, boolean slowMode) {
         double heading = getHeadingRadians();
-        // Adjust input based on current heading so sticks align to field
+        // pretend the sticks are glued to the field instead of the robot :)
         double rotatedX = x * Math.cos(-heading) - y * Math.sin(-heading);
         double rotatedY = x * Math.sin(-heading) + y * Math.cos(-heading);
 
@@ -78,17 +78,17 @@ public class DriveSubsystem {
         backRight.setPower(0);
     }
 
-    /** Resets heading so current yaw becomes zero for field-centric control. */
+    /** sets whatever yaw we're at as the new "zero" for field-centric shenanigans. */
     public void resetHeading() {
         headingOffset = getRawHeadingRadians();
     }
 
-    /** Returns current heading in radians with offset applied. */
+    /** current heading in radians with my offset hack applied. */
     private double getHeadingRadians() {
         return getRawHeadingRadians() - headingOffset;
     }
 
-    /** Reads yaw from IMU in radians. */
+    /** raw yaw from the IMU, in radians. */
     private double getRawHeadingRadians() {
         return imu.getRobotYawPitchRollAngles().getYaw(RevHubOrientationOnRobot.AngleUnit.RADIANS);
     }
