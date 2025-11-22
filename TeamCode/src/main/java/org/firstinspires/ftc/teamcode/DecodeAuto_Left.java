@@ -70,7 +70,7 @@ public class DecodeAuto_Left extends LinearOpMode {
         drive.stop();
     }
 
-    /** lazy timer drive so i don't rewrite the same loop every step. */
+    /** lazy timer drive so i don't rewrite the same loop every step. hahahahhahahahaha im so smart
     private void driveForTime(double x, double y, double rotation, double seconds) {
         ElapsedTime timer = new ElapsedTime();
         timer.reset();
