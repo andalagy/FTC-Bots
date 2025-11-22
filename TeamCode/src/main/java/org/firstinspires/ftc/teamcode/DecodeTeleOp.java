@@ -2,91 +2,64 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
-import org.firstinspires.ftc.teamcode.subsystems.DriveSubsystem;
-import org.firstinspires.ftc.teamcode.subsystems.GateSubsystem;
-import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
-import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem;
+import org.firstinspires.ftc.teamcode.RobotConstants;
 
 @TeleOp(name = "Decode TeleOp", group = "Main")
 public class DecodeTeleOp extends LinearOpMode {
-
-    private DriveSubsystem drive;
-    private IntakeSubsystem intake;
-    private SlideSubsystem slides;
-    private GateSubsystem gate;
-
-    private final ElapsedTime dumpTimer = new ElapsedTime();
-    private boolean dumping = false;
+    private DcMotor frontLeft;
+    private DcMotor frontRight;
+    private DcMotor backLeft;
+    private DcMotor backRight;
 
     @Override
     public void runOpMode() throws InterruptedException {
-        drive = new DriveSubsystem(hardwareMap);
-        intake = new IntakeSubsystem(hardwareMap);
-        slides = new SlideSubsystem(hardwareMap);
-        gate = new GateSubsystem(hardwareMap);
+        // grab the drive motors that already exist in the configuration screen
+        frontLeft = hardwareMap.get(DcMotor.class, RobotConstants.FRONT_LEFT_NAME);
+        frontRight = hardwareMap.get(DcMotor.class, RobotConstants.FRONT_RIGHT_NAME);
+        backLeft = hardwareMap.get(DcMotor.class, RobotConstants.BACK_LEFT_NAME);
+        backRight = hardwareMap.get(DcMotor.class, RobotConstants.BACK_RIGHT_NAME);
 
-        gate.close();
+        // flip the left side so pushing the stick forward actually drives forward
+        frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
+        backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        telemetry.addLine("DECODE TeleOp ready");
+        // hold position when the driver lets go instead of coasting away
+        frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        frontRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        telemetry.addLine("TeleOp ready — waiting for start");
         telemetry.update();
 
         waitForStart();
 
         while (opModeIsActive()) {
-            // ---- drive stuff (field-centric vibes) ---- ★
-            double x = gamepad1.left_stick_x; // strafe lane
-            double y = -gamepad1.left_stick_y; // ftc decided forward is negative, go figure :)
-            double rotation = gamepad1.right_stick_x;
-            boolean slow = gamepad1.left_bumper || gamepad1.right_bumper;
+            // read the sticks in plain english: forward/back, strafe, and rotation
+            double drive = -gamepad1.left_stick_y; // FTC maps forward as negative, so flip it
+            double strafe = gamepad1.left_stick_x;
+            double turn = gamepad1.right_stick_x;
 
-            if (gamepad1.a) {
-                drive.resetHeading();
-            }
-            drive.drive(x, y, rotation, slow);
+            // blend the three motions into the four wheels like a shopping cart with side wheels
+            double denominator = Math.max(Math.abs(drive) + Math.abs(strafe) + Math.abs(turn), 1.0);
+            double frontLeftPower = (drive + strafe + turn) / denominator;
+            double backLeftPower = (drive - strafe + turn) / denominator;
+            double frontRightPower = (drive - strafe - turn) / denominator;
+            double backRightPower = (drive + strafe - turn) / denominator;
 
-            // ---- intake (aka vacuum) ---- ☆
-            if (gamepad2.right_trigger > 0.3) {
-                intake.intakeIn();
-            } else if (gamepad2.left_trigger > 0.3) {
-                intake.intakeOut();
-            } else {
-                intake.stop();
-            }
+            // send power out; all math is normalized so nothing ever tops ±1
+            frontLeft.setPower(frontLeftPower);
+            frontRight.setPower(frontRightPower);
+            backLeft.setPower(backLeftPower);
+            backRight.setPower(backRightPower);
 
-            // ---- slides presets (lazy buttons) ---- ~
-            if (gamepad2.dpad_down) {
-                slides.goToIntake();
-            } else if (gamepad2.dpad_left) {
-                slides.goToLow();
-            } else if (gamepad2.dpad_right) {
-                slides.goToHigh();
-            } else if (gamepad2.dpad_up) {
-                slides.goToMax();
-            }
-
-            // ---- gate (the little trap door) ---- ->
-            if (gamepad2.a) {
-                gate.open();
-                dumping = false;
-            } else if (gamepad2.b) {
-                gate.close();
-                dumping = false;
-            } else if (gamepad2.y && !dumping) {
-                // start a quick dump: pop it open for 0.4s then slam it shut
-                gate.open();
-                dumpTimer.reset();
-                dumping = true;
-            }
-
-            if (dumping && dumpTimer.seconds() > 0.4) {
-                gate.close();
-                dumping = false;
-            }
-
-            telemetry.addData("Dumping", dumping);
-            telemetry.addData("Slide busy", slides.isBusy());
+            // quick dashboard so the driver knows what the robot thinks it's doing
+            telemetry.addData("Drive", "%.2f", drive);
+            telemetry.addData("Strafe", "%.2f", strafe);
+            telemetry.addData("Turn", "%.2f", turn);
             telemetry.update();
         }
     }
