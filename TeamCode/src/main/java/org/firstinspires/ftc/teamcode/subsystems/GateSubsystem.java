@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
-/** little trap door buddy for flinging cargo out of the bucket ★ */
+/** little trap door for flinging cargo out of the bucket ★ */
 public class GateSubsystem {
     private final Servo gateServo;
 
