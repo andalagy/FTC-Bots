@@ -1,8 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
 /**
- * scribble pad for hardware names, directions, and the latest "feels right" numbers ☆
- * flip things here whenever the wiring or vibes change and hope future-me remembers.
+ * scribble pad for hardware names, directions, and the latest numbers ☆
+ * subject to future changes.
  */
 public class RobotConstants {
     // motor names as i typed them into the Robot Configuration screen ->
@@ -27,7 +27,7 @@ public class RobotConstants {
     public static final int SLIDE_INTAKE = 0;
     public static final int SLIDE_LOW = 850;      // rough guess, tweak as needed
     public static final int SLIDE_HIGH = 1600;
-    public static final int SLIDE_MAX = 1900;     // don't let the slides yeet themselves
+    public static final int SLIDE_MAX = 1900;     // don't let the slides fly away
 
     // slide motion settings
     public static final double SLIDE_POWER = 1.0;
