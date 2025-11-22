@@ -2,11 +2,10 @@ package org.firstinspires.ftc.teamcode.subsystems;
 
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.teamcode.RobotConstants;
-
 /**
- * fake eyeballs for guessing the OBELISK motif until a real pipeline shows up
- * rip this out for EasyOpenCV or whatever once i pick get real camera manager
+ * Placeholder vision helper so the rest of the robot code can stay stable while we pick a pipeline.
+ * Right now it only reports a hardcoded motif, but the structure is ready for EasyOpenCV or TFOD later.
+ * The hardware map and camera name are here so swapping in a real detector is a single drop-in change.
  */
 public class VisionSubsystem {
 
