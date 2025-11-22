@@ -49,7 +49,7 @@ public class DecodeAuto_Left extends LinearOpMode {
         slides.goToHigh();
         driveForTime(0, 0.5, 0, 0.7);
 
-        // 3. dump the preloaded artifacts ~
+        // 3. dump the preloaded artifacts 
         sleep(300);
         gate.open();
         sleep(600);
