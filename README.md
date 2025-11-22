@@ -1,17 +1,33 @@
 # FTC-Bots
 Fully functioning base code, tested, ready to plug in on the finished bot. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-lowkey i might be carring here
+Dedicated for https://ftc-events.firstinspires.org/team/33790
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+lowkey im carrying here :Y
