@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
-/** ball suck/release gadget so i remember which trigger does what ☆ */
+/** ball suck/release gadget ☆ */
 public class IntakeSubsystem {
     private final DcMotor intakeMotor;
 
