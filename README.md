@@ -1,2 +1,17 @@
 # FTC-Bots
-Alright so this is the base automation code I did (incomplete) but it is all I can do in two hours. Good luck guys :Y
+Fully functioning base code, tested, ready to plug in on the finished bot. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+lowkey i might be carring here
