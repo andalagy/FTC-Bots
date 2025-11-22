@@ -11,9 +11,9 @@ import com.qualcomm.robotcore.hardware.IMU;
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
 /**
- * mecanum brain dump ☆
- * field-centric to me = the sticks are glued to the field, not the robot.
- * i reset heading whenever "forward" stops working.
+ * Drives the mecanum drivetrain and keeps track of heading for field-centric control.
+ * The IMU gives us robot yaw so we can rotate joystick input into field space.
+ * Use resetHeading() whenever the driver's sense of "forward" no longer matches the bot.
  */
 public class DriveSubsystem {
     private final DcMotor frontLeft;
@@ -22,7 +22,7 @@ public class DriveSubsystem {
     private final DcMotor backRight;
     private final IMU imu;
 
-    private double headingOffset = 0; // little offset knob so i can re-zero during TeleOp ★
+    private double headingOffset = 0; // little offset knob so we can re-zero during TeleOp
 
     public DriveSubsystem(HardwareMap hardwareMap) {
         frontLeft = hardwareMap.get(DcMotor.class, RobotConstants.FRONT_LEFT_NAME);
@@ -46,15 +46,13 @@ public class DriveSubsystem {
     }
 
     /**
-     * field drive cheat sheet so i don't overthink the math mid-match 
-     * @param x strafe input (-1 to 1)
-     * @param y forward input (-1 to 1)
-     * @param rotation rotation input (-1 to 1)
-     * @param slowMode if true, scales power when i want to be gentle
+     * Drive helper for field-centric mecanum math.
+     * We rotate the joystick vector by the robot heading so pushing forward always heads up-field.
+     * Rotation input is blended in and everything gets normalized so no wheel commands exceed ±1.
      */
     public void drive(double x, double y, double rotation, boolean slowMode) {
         double heading = getHeadingRadians();
-        // pretend the sticks are glued to the field instead of the robot :)
+        // rotate the joystick vector by the robot heading so controls stay field oriented
         double rotatedX = x * Math.cos(-heading) - y * Math.sin(-heading);
         double rotatedY = x * Math.sin(-heading) + y * Math.cos(-heading);
 
@@ -83,7 +81,12 @@ public class DriveSubsystem {
         headingOffset = getRawHeadingRadians();
     }
 
-    /** current heading in radians with my offset hack applied */
+    /** quick helper for telemetry so drivers can see field heading in degrees. */
+    public double getHeadingDegrees() {
+        return Math.toDegrees(getHeadingRadians());
+    }
+
+    /** current heading in radians with the offset hack applied */
     private double getHeadingRadians() {
         return getRawHeadingRadians() - headingOffset;
     }

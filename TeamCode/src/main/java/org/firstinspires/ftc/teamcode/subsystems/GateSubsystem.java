@@ -5,7 +5,11 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
-/** little trap door for flinging cargo out of the bucket ★ */
+/**
+ * Runs the bucket gate servo that keeps samples in place until we want to score.
+ * Call open() to drop game pieces and close() to lock everything back down.
+ * Positions live in RobotConstants so tuning is easy without digging through code.
+ */
 public class GateSubsystem {
     private final Servo gateServo;
 

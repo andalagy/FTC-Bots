@@ -6,7 +6,11 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
-/** ball suck/release gadget ☆ */
+/**
+ * Handles the intake roller so we can grab or spit out game pieces on command.
+ * Power is kept simple on purpose: full power in, full power out, or stopped.
+ * The motor name comes straight from RobotConstants so it matches the config file.
+ */
 public class IntakeSubsystem {
     private final DcMotor intakeMotor;
 

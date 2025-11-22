@@ -11,6 +11,11 @@ import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
 
+/**
+ * Simple left-side auto that drives off the line, raises slides, and drops the preload.
+ * Uses the same subsystems as TeleOp so hardware changes only happen in one place.
+ * Vision is a placeholder; detection is polled once so we can branch later if needed.
+ */
 @Autonomous(name = "Decode Auto Left", group = "Main")
 public class DecodeAuto_Left extends LinearOpMode {
 
@@ -49,7 +54,7 @@ public class DecodeAuto_Left extends LinearOpMode {
         slides.goToHigh();
         driveForTime(0, 0.5, 0, 0.7);
 
-        // 3. dump the preloaded artifacts 
+        // 3. dump the preloaded artifacts
         sleep(300);
         gate.open();
         sleep(600);
@@ -70,7 +75,9 @@ public class DecodeAuto_Left extends LinearOpMode {
         drive.stop();
     }
 
-    /** lazy timer drive so i don't rewrite the same loop every step. hahahahhahahahaha im so smart
+    /**
+     * lazy timer drive so i don't rewrite the same loop every step.
+     */
     private void driveForTime(double x, double y, double rotation, double seconds) {
         ElapsedTime timer = new ElapsedTime();
         timer.reset();
