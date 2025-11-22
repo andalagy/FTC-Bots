@@ -7,8 +7,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
 /**
- * slide babysitter: tells both motors where to park and hopes they listen ☆
- * tweak the ticks in RobotConstants whenever the real robot complains.
+ * slide babysitter: tells both motors where to park ☆
+ * tweak the ticks in RobotConstants 
  */
 public class SlideSubsystem {
     private final DcMotor leftSlide;
