@@ -11,9 +11,9 @@ import com.qualcomm.robotcore.hardware.IMU;
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
 /**
- * mecanum brain dump ☆ imu keeps me pointed, math keeps the wheels honest.
+ * mecanum brain dump ☆
  * field-centric to me = the sticks are glued to the field, not the robot.
- * i reset heading whenever "forward" stops feeling forward anymore.
+ * i reset heading whenever "forward" stops working.
  */
 public class DriveSubsystem {
     private final DcMotor frontLeft;
@@ -46,7 +46,7 @@ public class DriveSubsystem {
     }
 
     /**
-     * field drive cheat sheet so i don't overthink the math mid-match ~
+     * field drive cheat sheet so i don't overthink the math mid-match 
      * @param x strafe input (-1 to 1)
      * @param y forward input (-1 to 1)
      * @param rotation rotation input (-1 to 1)
@@ -78,12 +78,12 @@ public class DriveSubsystem {
         backRight.setPower(0);
     }
 
-    /** sets whatever yaw we're at as the new "zero" for field-centric shenanigans. */
+    /** sets whatever yaw we're at as the new "zero" for field-centric stuff. */
     public void resetHeading() {
         headingOffset = getRawHeadingRadians();
     }
 
-    /** current heading in radians with my offset hack applied. */
+    /** current heading in radians with my offset hack applied */
     private double getHeadingRadians() {
         return getRawHeadingRadians() - headingOffset;
     }
