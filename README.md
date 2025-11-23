@@ -27,3 +27,12 @@ Fully functioning base code, tested, ready to plug in on the finished bot.  (min
 <br>
 
 lowkey im carrying here :Y
+
+## How to build & run
+
+1. Open this project in Android Studio.
+2. Make sure Android SDK / Platform and build-tools that match the FTC SDK version are installed.
+3. Select the `FtcRobotController` module as the run configuration.
+4. Plug in the Robot Controller phone via USB.
+5. Click Run ▶ to install the app.
+6. Connect the Driver Station phone and select `DecodeTeleOp` (or other OpModes) to test on the real robot.

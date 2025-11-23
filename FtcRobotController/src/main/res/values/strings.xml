@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">FTC Robot Controller</string>
+    <string name="device_name_label">Device</string>
+    <string name="network_status_label">Network</string>
+    <string name="robot_status_label">Robot</string>
+    <string name="gamepad1_label">Gamepad 1</string>
+    <string name="gamepad2_label">Gamepad 2</string>
+    <string name="opmode_label">OpMode</string>
+    <string name="status_unknown">unknown</string>
+</resources>
