@@ -43,6 +43,14 @@ public class RobotConstants {
     public static final double SLIDE_POWER = 1.0;
     public static final double SLIDE_HOLD_POWER = 0.05; // tiny holding power for manual modes :)
     public static final int SLIDE_POSITION_TOLERANCE = 25; // ticks away from the target to count as "arrived"
+    public static final double SLIDE_CURRENT_LIMIT_AMPS = 8.5; // soft over-current guard for stalled slides
+    public static final double SLIDE_STALL_VELOCITY_TICKS_PER_S = 25.0; // treat below this as "stopped"
+    public static final long SLIDE_STALL_TIMEOUT_MS = 400; // how long we allow a stall before faulting
+    public static final double SLIDE_STALL_MIN_POWER = 0.2; // ignore stall checks when hardly applying power
+    public static final long SLIDE_FAULT_CLEAR_MS = 800; // cool-down time before we automatically retry
+    public static final double SLIDE_RECOVERY_CURRENT_RATIO = 0.5; // fraction of the limit required before clearing a fault
+    public static final int SLIDE_SLOW_ZONE_TICKS = 150; // start ramping down power this far from the ends
+    public static final double SLIDE_SLOW_ZONE_SCALE = 0.5; // power multiplier inside the slow zone
 
     // gate servo positions (0-1). tune for your hardware.
     public static final double GATE_CLOSED = 0.15;

@@ -82,6 +82,10 @@ public class DecodeTeleOp extends LinearOpMode {
             boolean parkRequested = gamepad2.dpad_down;
             boolean cancelRequested = gamepad2.left_bumper || Math.abs(slideInput) > 0.1 || gamepad2.a || gamepad2.b;
 
+            if (slides.isFaulted() && activeMacro != MacroType.NONE) {
+                cancelMacro();
+            }
+
             if (cancelRequested && activeMacro != MacroType.NONE) {
                 cancelMacro();
             }
@@ -124,15 +128,11 @@ public class DecodeTeleOp extends LinearOpMode {
             telemetry.addData("Heading hold", drive.isHeadingHoldEnabled());
             telemetry.addData("Battery (V)", "%.2f", getBatteryVoltage());
             telemetry.addData("Macro", activeMacro + " / " + macroStage);
-            telemetry.addData("Slides target", slides.getTargetPosition());
-            telemetry.addData("Slides pos", slides.getAveragePosition());
             telemetry.addData("Slide at target?", slides.isAtTarget());
             telemetry.addData("Drive powers", "FL %.2f FR %.2f BL %.2f BR %.2f",
                     drive.getFrontLeftPower(), drive.getFrontRightPower(),
                     drive.getBackLeftPower(), drive.getBackRightPower());
-            telemetry.addData("Slide motors", "L %d (%.2f) R %d (%.2f)",
-                    slides.getLeftPosition(), slides.getLeftPower(),
-                    slides.getRightPosition(), slides.getRightPower());
+            slides.addTelemetry(telemetry);
             telemetry.addData("Intake power", "%.2f", intake.getPower());
             telemetry.addData("Gate position", "%.2f", gate.getPosition());
             telemetry.addData("Vision motif", detectedMotif);
@@ -183,6 +183,11 @@ public class DecodeTeleOp extends LinearOpMode {
     }
 
     private void runMacro() {
+        if (slides.isFaulted()) {
+            activeMacro = MacroType.NONE;
+            macroStage = MacroStage.IDLE;
+            return;
+        }
         switch (activeMacro) {
             case RAPID_CYCLE:
                 runRapidCycle();
