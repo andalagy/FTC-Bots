@@ -38,7 +38,7 @@ public class DecodeTeleOp extends LinearOpMode {
         intake = new IntakeSubsystem(hardwareMap);
         slides = new SlideSubsystem(hardwareMap);
         gate = new GateSubsystem(hardwareMap);
-        vision = new VisionSubsystem(hardwareMap);
+        vision = new VisionSubsystem(hardwareMap, telemetry);
 
         gate.close();
         vision.start();
@@ -112,6 +112,7 @@ public class DecodeTeleOp extends LinearOpMode {
 
             // Vision heartbeat: report live motif
             DetectedMotif detectedMotif = vision.getCurrentMotif();
+            vision.applyCameraControls();
 
             telemetry.addData("Heading (deg)", "%.1f", drive.getHeadingDegrees());
             telemetry.addData("Heading hold", drive.isHeadingHoldEnabled());
@@ -119,6 +120,7 @@ public class DecodeTeleOp extends LinearOpMode {
             telemetry.addData("Slides pos", slides.getAveragePosition());
             telemetry.addData("Slide at target?", slides.isAtTarget());
             telemetry.addData("Vision motif", detectedMotif);
+            telemetry.addData("Vision camera", vision.getCameraStatus());
             telemetry.update();
         }
 
