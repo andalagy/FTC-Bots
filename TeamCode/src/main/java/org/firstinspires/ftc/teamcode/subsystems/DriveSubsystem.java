@@ -3,10 +3,12 @@ package org.firstinspires.ftc.teamcode.subsystems;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot.LogoFacingDirection;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot.UsbFacingDirection;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.RobotConstants;
 
@@ -23,6 +25,8 @@ public class DriveSubsystem {
     private final IMU imu;
 
     private double headingOffset = 0; // little offset knob so we can re-zero during TeleOp
+    private boolean headingHoldEnabled = false;
+    private double headingHoldTargetRadians = 0;
 
     public DriveSubsystem(HardwareMap hardwareMap) {
         frontLeft = hardwareMap.get(DcMotor.class, RobotConstants.FRONT_LEFT_NAME);
@@ -56,6 +60,13 @@ public class DriveSubsystem {
         double rotatedX = x * Math.cos(-heading) - y * Math.sin(-heading);
         double rotatedY = x * Math.sin(-heading) + y * Math.cos(-heading);
 
+        if (headingHoldEnabled && Math.abs(rotation) < RobotConstants.HEADING_HOLD_DEADBAND) {
+            rotation = Range.clip((headingHoldTargetRadians - heading) * RobotConstants.HEADING_HOLD_KP,
+                    -RobotConstants.HEADING_HOLD_MAX_TURN, RobotConstants.HEADING_HOLD_MAX_TURN);
+        } else {
+            headingHoldTargetRadians = heading; // refresh target whenever the driver actively turns
+        }
+
         double denominator = Math.max(Math.abs(rotatedY) + Math.abs(rotatedX) + Math.abs(rotation), 1.0);
         double frontLeftPower = (rotatedY + rotatedX + rotation) / denominator;
         double backLeftPower = (rotatedY - rotatedX + rotation) / denominator;
@@ -79,6 +90,7 @@ public class DriveSubsystem {
     /** sets whatever yaw we're at as the new "zero" for field-centric stuff. */
     public void resetHeading() {
         headingOffset = getRawHeadingRadians();
+        headingHoldTargetRadians = 0;
     }
 
     /** quick helper for telemetry so drivers can see field heading in degrees. */
@@ -87,12 +99,106 @@ public class DriveSubsystem {
     }
 
     /** current heading in radians with the offset hack applied */
-    private double getHeadingRadians() {
+    public double getHeadingRadians() {
         return getRawHeadingRadians() - headingOffset;
     }
 
     /** raw yaw from the IMU, in radians. */
     private double getRawHeadingRadians() {
         return imu.getRobotYawPitchRollAngles().getYaw(RevHubOrientationOnRobot.AngleUnit.RADIANS);
+    }
+
+    public void enableHeadingHold(boolean enabled) {
+        headingHoldEnabled = enabled;
+        headingHoldTargetRadians = getHeadingRadians();
+    }
+
+    public boolean isHeadingHoldEnabled() {
+        return headingHoldEnabled;
+    }
+
+    /** reset all four drive encoders and prepare for encoder-based motion */
+    public void resetDriveEncoders() {
+        frontLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        frontRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        backLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        backRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        frontLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        frontRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
+
+    /** encoder + IMU helper to drive forward/backward and hold a heading */
+    public void driveStraightWithHeading(double inches, double speed, double holdHeadingDeg, LinearOpMode opMode) {
+        resetDriveEncoders();
+        int targetTicks = ticksFromInches(Math.abs(inches));
+        double direction = Math.signum(inches);
+        while (opMode.opModeIsActive() && Math.abs(getAverageEncoderPosition()) < targetTicks) {
+            double headingError = Math.toRadians(holdHeadingDeg) - getHeadingRadians();
+            double correction = Range.clip(headingError * RobotConstants.HEADING_HOLD_KP,
+                    -RobotConstants.HEADING_HOLD_MAX_TURN, RobotConstants.HEADING_HOLD_MAX_TURN);
+
+            setWheelPowers((direction * speed) + correction,
+                    (direction * speed) - correction,
+                    (direction * speed) + correction,
+                    (direction * speed) - correction);
+            opMode.idle();
+        }
+        stop();
+    }
+
+    /** encoder + IMU helper to strafe while holding heading */
+    public void strafeWithHeading(double inches, double speed, double holdHeadingDeg, LinearOpMode opMode) {
+        resetDriveEncoders();
+        int targetTicks = ticksFromInches(Math.abs(inches));
+        double direction = Math.signum(inches); // right is positive
+        while (opMode.opModeIsActive() && Math.abs(getAverageEncoderPosition()) < targetTicks) {
+            double headingError = Math.toRadians(holdHeadingDeg) - getHeadingRadians();
+            double correction = Range.clip(headingError * RobotConstants.HEADING_HOLD_KP,
+                    -RobotConstants.HEADING_HOLD_MAX_TURN, RobotConstants.HEADING_HOLD_MAX_TURN);
+
+            double base = direction * speed;
+            setWheelPowers(base + correction,
+                    -base - correction,
+                    -base + correction,
+                    base - correction);
+            opMode.idle();
+        }
+        stop();
+    }
+
+    /** IMU-only turn helper with simple proportional control */
+    public void turnToHeading(double targetHeadingDeg, double maxPower, LinearOpMode opMode) {
+        double targetRad = Math.toRadians(targetHeadingDeg);
+        while (opMode.opModeIsActive()) {
+            double error = targetRad - getHeadingRadians();
+            if (Math.abs(error) < Math.toRadians(1.5)) {
+                break;
+            }
+            double turn = Range.clip(error * RobotConstants.HEADING_HOLD_KP * 1.5,
+                    -maxPower, maxPower);
+            setWheelPowers(turn, -turn, turn, -turn); // rotate in place
+            opMode.idle();
+        }
+        stop();
+        headingHoldTargetRadians = getHeadingRadians();
+    }
+
+    private void setWheelPowers(double fl, double fr, double bl, double br) {
+        frontLeft.setPower(fl);
+        frontRight.setPower(fr);
+        backLeft.setPower(bl);
+        backRight.setPower(br);
+    }
+
+    private int ticksFromInches(double inches) {
+        return (int) Math.round(inches * RobotConstants.DRIVE_TICKS_PER_INCH);
+    }
+
+    private double getAverageEncoderPosition() {
+        return (Math.abs(frontLeft.getCurrentPosition()) + Math.abs(frontRight.getCurrentPosition())
+                + Math.abs(backLeft.getCurrentPosition()) + Math.abs(backRight.getCurrentPosition())) / 4.0;
     }
 }

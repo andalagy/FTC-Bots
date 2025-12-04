@@ -23,6 +23,16 @@ public class RobotConstants {
     public static final double NORMAL_SPEED = 0.9;   // full power scale for teleop ☆
     public static final double SLOW_SPEED = 0.4;     // precision mode when holding a bumper
 
+    // drive encoder/geometry numbers (tune to your drivetrain)
+    public static final double DRIVE_TICKS_PER_REV = 537.7; // goBILDA 312 RPM yellow jacket default
+    public static final double DRIVE_GEAR_RATIO = 1.0;      // output (wheel) speed / motor speed
+    public static final double DRIVE_WHEEL_DIAMETER_IN = 3.78; // 96 mm mecanum
+    public static final double DRIVE_TICKS_PER_INCH =
+            (DRIVE_TICKS_PER_REV * DRIVE_GEAR_RATIO) / (Math.PI * DRIVE_WHEEL_DIAMETER_IN);
+    public static final double HEADING_HOLD_KP = 0.02;        // tune the heading hold assist
+    public static final double HEADING_HOLD_DEADBAND = 0.05;  // ignore tiny stick wiggles
+    public static final double HEADING_HOLD_MAX_TURN = 0.4;   // cap heading correction power
+
     // slide target positions (encoder ticks). tune for your robot.
     public static final int SLIDE_INTAKE = 0;
     public static final int SLIDE_LOW = 850;      // rough guess, tweak as needed
@@ -32,6 +42,7 @@ public class RobotConstants {
     // slide motion settings
     public static final double SLIDE_POWER = 1.0;
     public static final double SLIDE_HOLD_POWER = 0.05; // tiny holding power for manual modes :)
+    public static final int SLIDE_POSITION_TOLERANCE = 25; // ticks away from the target to count as "arrived"
 
     // gate servo positions (0-1). tune for your hardware.
     public static final double GATE_CLOSED = 0.15;

@@ -12,8 +12,16 @@ import org.firstinspires.ftc.teamcode.RobotConstants;
  * Encoder checks keep the slides inside the intake-to-max window to protect the rigging.
  */
 public class SlideSubsystem {
+    public enum SlidePreset {
+        INTAKE,
+        LOW,
+        HIGH,
+        MAX
+    }
+
     private final DcMotor leftSlide;
     private final DcMotor rightSlide;
+    private int targetPositionTicks = RobotConstants.SLIDE_INTAKE;
 
     public SlideSubsystem(HardwareMap hardwareMap) {
         leftSlide = hardwareMap.get(DcMotor.class, RobotConstants.LEFT_SLIDE_NAME);
@@ -32,25 +40,38 @@ public class SlideSubsystem {
         rightSlide.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
+    public void goToPreset(SlidePreset preset) {
+        switch (preset) {
+            case LOW:
+                moveToPosition(RobotConstants.SLIDE_LOW);
+                break;
+            case HIGH:
+                moveToPosition(RobotConstants.SLIDE_HIGH);
+                break;
+            case MAX:
+                moveToPosition(RobotConstants.SLIDE_MAX);
+                break;
+            case INTAKE:
+            default:
+                moveToPosition(RobotConstants.SLIDE_INTAKE);
+                break;
+        }
+    }
+
     public void goToIntake() {
-        moveToPosition(RobotConstants.SLIDE_INTAKE);
+        goToPreset(SlidePreset.INTAKE);
     }
 
     public void goToLow() {
-        moveToPosition(RobotConstants.SLIDE_LOW);
+        goToPreset(SlidePreset.LOW);
     }
 
     public void goToHigh() {
-        moveToPosition(RobotConstants.SLIDE_HIGH);
+        goToPreset(SlidePreset.HIGH);
     }
 
     public void goToMax() {
-        moveToPosition(RobotConstants.SLIDE_MAX);
-    }
-
-    public void stop() {
-        leftSlide.setPower(0);
-        rightSlide.setPower(0);
+        goToPreset(SlidePreset.MAX);
     }
 
     public boolean isBusy() {
@@ -78,6 +99,8 @@ public class SlideSubsystem {
             } else {
                 requestedPower = 0;
             }
+        } else {
+            targetPositionTicks = (int) avgPosition; // handoff to manual sets new hold position
         }
 
         leftSlide.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -86,18 +109,44 @@ public class SlideSubsystem {
         rightSlide.setPower(requestedPower);
     }
 
+    public void stop() {
+        leftSlide.setPower(0);
+        rightSlide.setPower(0);
+    }
+
     public int getAveragePosition() {
         return (leftSlide.getCurrentPosition() + rightSlide.getCurrentPosition()) / 2;
     }
 
+    public boolean isAtTarget() {
+        return Math.abs(getAveragePosition() - targetPositionTicks) <= RobotConstants.SLIDE_POSITION_TOLERANCE;
+    }
+
+    public int getTargetPosition() {
+        return targetPositionTicks;
+    }
+
     private void moveToPosition(int targetTicks) {
-        leftSlide.setTargetPosition(targetTicks);
-        rightSlide.setTargetPosition(targetTicks);
+        targetPositionTicks = enforceLimits(targetTicks);
+
+        leftSlide.setTargetPosition(targetPositionTicks);
+        rightSlide.setTargetPosition(targetPositionTicks);
 
         leftSlide.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightSlide.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
+        // FTC SDK runs a built-in P controller in RUN_TO_POSITION; tune power + target values above
         leftSlide.setPower(RobotConstants.SLIDE_POWER);
         rightSlide.setPower(RobotConstants.SLIDE_POWER);
+    }
+
+    private int enforceLimits(int desiredTicks) {
+        if (desiredTicks > RobotConstants.SLIDE_MAX) {
+            return RobotConstants.SLIDE_MAX;
+        }
+        if (desiredTicks < RobotConstants.SLIDE_INTAKE) {
+            return RobotConstants.SLIDE_INTAKE;
+        }
+        return desiredTicks;
     }
 }
