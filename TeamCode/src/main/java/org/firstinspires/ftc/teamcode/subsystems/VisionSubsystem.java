@@ -11,6 +11,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.WebcamName;
 
 import org.firstinspires.ftc.teamcode.RobotConstants;
+import org.openftc.apriltag.AprilTagDetection;
+import org.openftc.apriltag.AprilTagDetectorJNI;
 import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraFactory;
 import org.openftc.easyopencv.OpenCvCameraRotation;
@@ -44,6 +46,7 @@ public class VisionSubsystem {
 
     private final OpenCvWebcam webcam;
     private final SleevePipeline pipeline;
+    private final AprilTagPipeline aprilTagPipeline;
     private final Telemetry telemetry;
     private volatile String cameraStatus = "Not started";
 
@@ -63,6 +66,18 @@ public class VisionSubsystem {
     public static int LEFT_X = 40;
     public static int CENTER_X = 240;
     public static int RIGHT_X = 440;
+
+    // AprilTag/backdrop search parameters (dashboard tunable)
+    public static double TAG_SIZE_METERS = 0.0508; // 2 inches
+    public static double FX = 578.272;
+    public static double FY = 578.272;
+    public static double CX = 402.145;
+    public static double CY = 221.506;
+    public static double TAG_DECIMATION = 2.0;
+    public static int TAG_ROI_X = 40;
+    public static int TAG_ROI_Y = 120;
+    public static int TAG_ROI_WIDTH = 560;
+    public static int TAG_ROI_HEIGHT = 240;
 
     // Camera control toggles
     public static boolean USE_MANUAL_EXPOSURE = true;
@@ -87,6 +102,7 @@ public class VisionSubsystem {
                 cameraMonitorViewId);
         pipeline = new SleevePipeline();
         webcam.setPipeline(pipeline);
+        aprilTagPipeline = new AprilTagPipeline();
     }
 
     /** start streaming to the RC phone and begin detecting motifs */
@@ -117,6 +133,26 @@ public class VisionSubsystem {
     /** latest classification from the pipeline; safe to call from any OpMode loop */
     public DetectedMotif getCurrentMotif() {
         return pipeline.getCurrentMotif();
+    }
+
+    /** latest AprilTag target pose (if any) */
+    public BackdropTarget getBackdropTarget(DetectedMotif desired) {
+        return aprilTagPipeline.getBestTargetFor(desired);
+    }
+
+    /** switch from the sleeve pipeline to the AprilTag pipeline for backdrop alignment */
+    public void useAprilTags() {
+        if (webcam != null) {
+            webcam.setPipeline(aprilTagPipeline);
+            aprilTagPipeline.updateDecimation();
+        }
+    }
+
+    /** revert to sleeve detection (e.g., for debug) */
+    public void useSleevePipeline() {
+        if (webcam != null) {
+            webcam.setPipeline(pipeline);
+        }
     }
 
     /** latest camera state for telemetry */
@@ -282,6 +318,120 @@ public class VisionSubsystem {
 
         public DetectedMotif getCurrentMotif() {
             return currentMotif;
+        }
+    }
+
+    /** Pose/offset helper for aligning to the backdrop tag columns */
+    public static class BackdropTarget {
+        public final int tagId;
+        public final double rangeMeters;
+        public final double lateralMeters;
+        public final double headingErrorRad;
+        public final double xPixelError;
+
+        public BackdropTarget(int tagId, double rangeMeters, double lateralMeters,
+                              double headingErrorRad, double xPixelError) {
+            this.tagId = tagId;
+            this.rangeMeters = rangeMeters;
+            this.lateralMeters = lateralMeters;
+            this.headingErrorRad = headingErrorRad;
+            this.xPixelError = xPixelError;
+        }
+
+        public double getLateralInches() {
+            return lateralMeters * 39.3701;
+        }
+
+        public double getRangeInches() {
+            return rangeMeters * 39.3701;
+        }
+    }
+
+    /** AprilTag pipeline focused on backdrop tags 1-3 with ROI filtering */
+    private static class AprilTagPipeline extends OpenCvPipeline {
+        private final long nativeApriltagPtr;
+        private final Mat gray = new Mat();
+        private volatile AprilTagDetection latestDetection;
+
+        AprilTagPipeline() {
+            nativeApriltagPtr = AprilTagDetectorJNI.createApriltagDetector(
+                    AprilTagDetectorJNI.TagFamily.TAG_36h11.string, 3, 3);
+            updateDecimation();
+        }
+
+        @Override
+        public Mat processFrame(Mat input) {
+            Rect roi = clampRect(new Rect(TAG_ROI_X, TAG_ROI_Y, TAG_ROI_WIDTH, TAG_ROI_HEIGHT), input);
+            if (roi.width <= 0 || roi.height <= 0) {
+                return input;
+            }
+            Mat cropped = input.submat(roi);
+            Imgproc.cvtColor(cropped, gray, Imgproc.COLOR_RGB2GRAY);
+
+            double roiCx = CX - roi.x;
+            double roiCy = CY - roi.y;
+            ArrayList<AprilTagDetection> detections = AprilTagDetectorJNI.runAprilTagDetectorSimple(
+                    nativeApriltagPtr, gray, TAG_SIZE_METERS, FX, FY, roiCx, roiCy);
+
+            cropped.release();
+
+            latestDetection = chooseBackdropDetection(detections);
+
+            // Draw ROI for dashboard/preview feedback
+            Imgproc.rectangle(input, roi, new Scalar(255, 128, 0), 2);
+            if (latestDetection != null) {
+                Point center = new Point(latestDetection.center.x + roi.x, latestDetection.center.y + roi.y);
+                Imgproc.circle(input, center, 6, new Scalar(0, 255, 255), -1);
+                Imgproc.putText(input, String.format("id:%d", latestDetection.id),
+                        new Point(center.x - 20, center.y - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5,
+                        new Scalar(0, 255, 255), 2);
+            }
+
+            return input;
+        }
+
+        private Rect clampRect(Rect roi, Mat input) {
+            int x = Math.max(0, roi.x);
+            int y = Math.max(0, roi.y);
+            int width = Math.min(roi.width, input.width() - x);
+            int height = Math.min(roi.height, input.height() - y);
+            return new Rect(x, y, Math.max(0, width), Math.max(0, height));
+        }
+
+        private AprilTagDetection chooseBackdropDetection(ArrayList<AprilTagDetection> detections) {
+            AprilTagDetection best = null;
+            for (AprilTagDetection detection : detections) {
+                if (detection.id < 1 || detection.id > 3) {
+                    continue;
+                }
+                if (best == null || detection.pose.z < best.pose.z) {
+                    best = detection;
+                }
+            }
+            return best;
+        }
+
+        public BackdropTarget getBestTargetFor(DetectedMotif desired) {
+            AprilTagDetection detection = latestDetection;
+            if (detection == null) {
+                return null;
+            }
+
+            int expectedId = desired == DetectedMotif.MOTIF_A ? 1
+                    : desired == DetectedMotif.MOTIF_B ? 2 : 3;
+            if (detection.id != expectedId) {
+                // still return the seen tag, but note mismatch via heading/offset
+            }
+
+            double lateral = detection.pose.x;
+            double range = Math.hypot(detection.pose.x, detection.pose.z);
+            double headingError = detection.pose.yaw;
+            double pixelOffset = detection.center.x - CX;
+            return new BackdropTarget(detection.id, range, lateral, headingError, pixelOffset);
+        }
+
+        public void updateDecimation() {
+            AprilTagDetectorJNI.setApriltagDetectorDecimation(nativeApriltagPtr, TAG_DECIMATION);
         }
     }
 }

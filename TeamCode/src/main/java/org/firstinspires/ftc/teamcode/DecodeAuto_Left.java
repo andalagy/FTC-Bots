@@ -10,6 +10,7 @@ import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem.SlidePreset;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
+import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.BackdropTarget;
 
 /**
  * Left-side auto that drives off the line, scores the preload, and parks based on the detected motif.
@@ -53,6 +54,7 @@ public class DecodeAuto_Left extends LinearOpMode {
 
         drive.resetHeading();
         detectedMotif = vision.getCurrentMotif();
+        vision.useAprilTags();
 
         // 1. leave the Launch Line
         drive.driveStraightWithHeading(20, 0.5, 0, this);
@@ -63,12 +65,20 @@ public class DecodeAuto_Left extends LinearOpMode {
         while (opModeIsActive() && !slides.isAtTarget()) {
             telemetry.addData("Step", "Raising slides");
             telemetry.addData("Slide pos", slides.getAveragePosition());
+            telemetry.addData("Tag seen?", vision.getBackdropTarget(detectedMotif) != null);
             telemetry.update();
             idle();
         }
 
         // 3. bump forward to scoring position and dump
         drive.driveStraightWithHeading(8, 0.35, 0, this);
+
+        // Correct lateral offset using the backdrop tag if visible
+        BackdropTarget target = vision.getBackdropTarget(detectedMotif);
+        if (target != null) {
+            double strafe = Math.max(-10, Math.min(10, target.getLateralInches()));
+            drive.strafeWithHeading(strafe, 0.35, 0, this);
+        }
         gate.open();
         sleep(600);
         gate.close();
@@ -83,6 +93,11 @@ public class DecodeAuto_Left extends LinearOpMode {
         } else if (detectedMotif == DetectedMotif.MOTIF_C) {
             drive.strafeWithHeading(16, 0.5, 0, this); // right parking zone
         } // motif B stays put
+
+        // confirm parking column/tag alignment
+        target = vision.getBackdropTarget(detectedMotif);
+        telemetry.addData("Parking tag", target != null ? target.tagId : "none");
+        telemetry.update();
 
         drive.stop();
         vision.stop();
