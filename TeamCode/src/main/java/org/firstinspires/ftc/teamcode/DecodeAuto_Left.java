@@ -10,11 +10,14 @@ import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem.SlidePreset;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
+import org.firstinspires.ftc.teamcode.geometry.Pose2d;
+import org.firstinspires.ftc.teamcode.trajectory.Trajectory;
+import org.firstinspires.ftc.teamcode.trajectory.TrajectoryBuilder;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.BackdropTarget;
 
 /**
  * Left-side auto that drives off the line, scores the preload, and parks based on the detected motif.
- * Uses encoder + IMU helpers for straighter paths without Road Runner.
+ * Uses the lightweight trajectory follower instead of manual encoder while-loops.
  */
 @Autonomous(name = "Decode Auto Left", group = "Main")
 public class DecodeAuto_Left extends LinearOpMode {
@@ -52,15 +55,21 @@ public class DecodeAuto_Left extends LinearOpMode {
             return;
         }
 
+        Pose2d startPose = new Pose2d(0, 0, 0);
+        drive.setPoseEstimate(startPose);
         drive.resetHeading();
         detectedMotif = vision.getCurrentMotif();
         vision.useAprilTags();
 
-        // 1. leave the Launch Line
-        drive.driveStraightWithHeading(20, 0.5, 0, this);
-
-        // 2. slide up while strafing toward the left spike mark/backdrop
+        // 1-3. leave the Launch Line, slide left, and settle onto the backdrop lane
         slides.goToPreset(SlidePreset.HIGH);
+        Trajectory preloadPath = new TrajectoryBuilder(startPose)
+                .lineTo(new Pose2d(0, 20, 0), 0.55)
+                .lineTo(new Pose2d(-8, 20, 0), 0.55)
+                .lineTo(new Pose2d(-8, 28, 0), 0.4)
+                .build();
+        drive.followTrajectory(preloadPath, this);
+        while (opModeIsActive() && !slides.isAtTarget()) {
         drive.strafeWithHeading(-8, 0.5, 0, this);
         while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
             telemetry.addData("Step", "Raising slides");
@@ -89,13 +98,22 @@ public class DecodeAuto_Left extends LinearOpMode {
 
         // 4. drop slides and back away
         slides.goToPreset(SlidePreset.INTAKE);
-        drive.driveStraightWithHeading(-8, 0.4, 0, this);
+        Trajectory retreat = new TrajectoryBuilder(drive.getPoseEstimate())
+                .lineTo(new Pose2d(drive.getPoseEstimate().x, drive.getPoseEstimate().y - 8, 0), 0.5)
+                .build();
+        drive.followTrajectory(retreat, this);
 
         // 5. park based on motif
         if (detectedMotif == DetectedMotif.MOTIF_A) {
-            drive.strafeWithHeading(-16, 0.5, 0, this); // left parking zone
+            Trajectory parkLeft = new TrajectoryBuilder(drive.getPoseEstimate())
+                    .strafeTo(-16, drive.getPoseEstimate().y, 0.55)
+                    .build();
+            drive.followTrajectory(parkLeft, this);
         } else if (detectedMotif == DetectedMotif.MOTIF_C) {
-            drive.strafeWithHeading(16, 0.5, 0, this); // right parking zone
+            Trajectory parkRight = new TrajectoryBuilder(drive.getPoseEstimate())
+                    .strafeTo(16, drive.getPoseEstimate().y, 0.55)
+                    .build();
+            drive.followTrajectory(parkRight, this);
         } // motif B stays put
 
         // confirm parking column/tag alignment

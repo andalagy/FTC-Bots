@@ -10,6 +10,9 @@ import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem.SlidePreset;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
+import org.firstinspires.ftc.teamcode.geometry.Pose2d;
+import org.firstinspires.ftc.teamcode.trajectory.Trajectory;
+import org.firstinspires.ftc.teamcode.trajectory.TrajectoryBuilder;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.BackdropTarget;
 
 /**
@@ -50,12 +53,17 @@ public class DecodeAuto_Center extends LinearOpMode {
             return;
         }
 
+        Pose2d startPose = new Pose2d(0, 0, 0);
+        drive.setPoseEstimate(startPose);
         drive.resetHeading();
         detectedMotif = vision.getCurrentMotif();
         vision.useAprilTags();
 
         // 1. drive straight to the backdrop
-        drive.driveStraightWithHeading(26, 0.55, 0, this);
+        Trajectory scoreBackdrop = new TrajectoryBuilder(startPose)
+                .lineTo(new Pose2d(0, 26, 0), 0.7)
+                .build();
+        drive.followTrajectory(scoreBackdrop, this);
 
         // Center on the correct column using AprilTags if available
         BackdropTarget target = vision.getBackdropTarget(detectedMotif);
@@ -88,11 +96,20 @@ public class DecodeAuto_Center extends LinearOpMode {
 
         // 3. retract and park according to the motif
         slides.goToPreset(SlidePreset.INTAKE);
-        drive.driveStraightWithHeading(-6, 0.45, 0, this);
+        Trajectory clearBackdrop = new TrajectoryBuilder(drive.getPoseEstimate())
+                .lineTo(new Pose2d(0, 20, drive.getPoseEstimate().heading), 0.55)
+                .build();
+        drive.followTrajectory(clearBackdrop, this);
         if (detectedMotif == DetectedMotif.MOTIF_A) {
-            drive.strafeWithHeading(-12, 0.45, 0, this);
+            Trajectory parkLeft = new TrajectoryBuilder(drive.getPoseEstimate())
+                    .strafeTo(-12, drive.getPoseEstimate().y, 0.55)
+                    .build();
+            drive.followTrajectory(parkLeft, this);
         } else if (detectedMotif == DetectedMotif.MOTIF_C) {
-            drive.strafeWithHeading(12, 0.45, 0, this);
+            Trajectory parkRight = new TrajectoryBuilder(drive.getPoseEstimate())
+                    .strafeTo(12, drive.getPoseEstimate().y, 0.55)
+                    .build();
+            drive.followTrajectory(parkRight, this);
         }
 
         drive.stop();
