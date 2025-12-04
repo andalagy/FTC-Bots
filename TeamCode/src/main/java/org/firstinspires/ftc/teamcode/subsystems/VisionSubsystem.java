@@ -2,6 +2,11 @@ package org.firstinspires.ftc.teamcode.subsystems;
 
 import android.content.res.Resources;
 
+import com.acmerobotics.dashboard.FtcDashboard;
+import com.acmerobotics.dashboard.config.Config;
+import com.qualcomm.robotcore.external.Telemetry;
+import com.qualcomm.robotcore.external.hardware.camera.controls.ExposureControl;
+import com.qualcomm.robotcore.external.hardware.camera.controls.WhiteBalanceControl;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.WebcamName;
 
@@ -13,15 +18,22 @@ import org.openftc.easyopencv.OpenCvPipeline;
 import org.openftc.easyopencv.OpenCvWebcam;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * EasyOpenCV-backed vision helper that streams from a webcam and classifies the sleeve/signal motif.
  * The pipeline uses simple color thresholds in three regions of interest and reports MOTIF_A/B/C.
  * Replace the thresholds/ROIs as you tune on the real field — the public API stays the same.
  */
+@Config
 public class VisionSubsystem {
 
     public enum DetectedMotif {
@@ -32,8 +44,42 @@ public class VisionSubsystem {
 
     private final OpenCvWebcam webcam;
     private final SleevePipeline pipeline;
+    private final Telemetry telemetry;
+    private volatile String cameraStatus = "Not started";
+
+    // Dashboard/telemetry-tunable HSV bounds and ROI placement
+    public static double[] LOWER_BLUE = {90, 60, 50};
+    public static double[] UPPER_BLUE = {140, 255, 255};
+    public static double[] LOWER_GREEN = {40, 50, 50};
+    public static double[] UPPER_GREEN = {85, 255, 255};
+    public static double[] LOWER_RED1 = {0, 70, 50};
+    public static double[] UPPER_RED1 = {10, 255, 255};
+    public static double[] LOWER_RED2 = {170, 70, 50};
+    public static double[] UPPER_RED2 = {180, 255, 255};
+
+    public static int ROI_Y = 200;
+    public static int ROI_WIDTH = 160;
+    public static int ROI_HEIGHT = 120;
+    public static int LEFT_X = 40;
+    public static int CENTER_X = 240;
+    public static int RIGHT_X = 440;
+
+    // Camera control toggles
+    public static boolean USE_MANUAL_EXPOSURE = true;
+    public static double EXPOSURE_MS = 12.0;
+    public static boolean USE_MANUAL_WHITE_BALANCE = true;
+    public static int WHITE_BALANCE_KELVIN = 4500;
+
+    // Filtering knobs
+    public static double SCORE_SMOOTHING = 0.6; // closer to 1.0 = more smoothing
+    public static double CONTOUR_WEIGHT = 0.35; // fraction of score that comes from contour area
 
     public VisionSubsystem(HardwareMap hardwareMap) {
+        this(hardwareMap, null);
+    }
+
+    public VisionSubsystem(HardwareMap hardwareMap, Telemetry telemetry) {
+        this.telemetry = telemetry;
         Resources res = hardwareMap.appContext.getResources();
         int cameraMonitorViewId = res.getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         webcam = OpenCvCameraFactory.getInstance().createWebcam(
@@ -49,11 +95,15 @@ public class VisionSubsystem {
             @Override
             public void onOpened() {
                 webcam.startStreaming(640, 480, OpenCvCameraRotation.UPRIGHT);
+                applyCameraControls();
+                cameraStatus = "Streaming";
+                pushTelemetry("Camera opened and streaming");
             }
 
             @Override
             public void onError(int errorCode) {
-                // leave blank; telemetry in the OpMode will show MOTIF_A default if camera fails
+                cameraStatus = "Open error: " + errorCode;
+                pushTelemetry(cameraStatus);
             }
         });
     }
@@ -69,39 +119,91 @@ public class VisionSubsystem {
         return pipeline.getCurrentMotif();
     }
 
+    /** latest camera state for telemetry */
+    public String getCameraStatus() {
+        return cameraStatus;
+    }
+
+    /**
+     * Apply manual exposure/white balance controls. Safe to call repeatedly (e.g. after slider tweaks).
+     */
+    public void applyCameraControls() {
+        if (webcam == null || !webcam.isStreaming()) {
+            return;
+        }
+
+        if (USE_MANUAL_EXPOSURE) {
+            try {
+                ExposureControl exposureControl = webcam.getExposureControl();
+                exposureControl.setMode(ExposureControl.Mode.Manual);
+                exposureControl.setExposure((long) EXPOSURE_MS, TimeUnit.MILLISECONDS);
+            } catch (RuntimeException e) {
+                pushTelemetry("Exposure control failed: " + e.getMessage());
+            }
+        }
+
+        if (USE_MANUAL_WHITE_BALANCE) {
+            try {
+                WhiteBalanceControl wbControl = webcam.getWhiteBalanceControl();
+                wbControl.setMode(WhiteBalanceControl.Mode.MANUAL);
+                wbControl.setWhiteBalanceTemperature(WHITE_BALANCE_KELVIN);
+            } catch (RuntimeException e) {
+                pushTelemetry("White balance control failed: " + e.getMessage());
+            }
+        }
+    }
+
+    private void pushTelemetry(String message) {
+        if (telemetry != null) {
+            telemetry.addLine(message);
+            telemetry.update();
+        }
+        FtcDashboard dashboard = FtcDashboard.getInstance();
+        if (dashboard != null) {
+            dashboard.getTelemetry().addLine(message);
+            dashboard.getTelemetry().update();
+        }
+    }
+
     /**
      * Example pipeline that checks three side-by-side ROIs for dominant color.
      * Tune the HSV bounds for your sleeve/signal art and adjust the rectangles to match the frame.
      */
     private static class SleevePipeline extends OpenCvPipeline {
-        private static final Scalar LOWER_BLUE = new Scalar(90, 60, 50);
-        private static final Scalar UPPER_BLUE = new Scalar(140, 255, 255);
-        private static final Scalar LOWER_GREEN = new Scalar(40, 50, 50);
-        private static final Scalar UPPER_GREEN = new Scalar(85, 255, 255);
-        private static final Scalar LOWER_RED1 = new Scalar(0, 70, 50);
-        private static final Scalar UPPER_RED1 = new Scalar(10, 255, 255);
-        private static final Scalar LOWER_RED2 = new Scalar(170, 70, 50);
-        private static final Scalar UPPER_RED2 = new Scalar(180, 255, 255);
-
-        private final Rect leftRoi = new Rect(40, 200, 160, 120);
-        private final Rect centerRoi = new Rect(240, 200, 160, 120);
-        private final Rect rightRoi = new Rect(440, 200, 160, 120);
-
         private DetectedMotif currentMotif = DetectedMotif.MOTIF_A;
+        private double leftAvg = 0;
+        private double centerAvg = 0;
+        private double rightAvg = 0;
+
+        private Rect clampRect(Rect roi, Mat input) {
+            int x = Math.max(0, roi.x);
+            int y = Math.max(0, roi.y);
+            int width = Math.min(roi.width, input.width() - x);
+            int height = Math.min(roi.height, input.height() - y);
+            return new Rect(x, y, Math.max(0, width), Math.max(0, height));
+        }
 
         @Override
         public Mat processFrame(Mat input) {
             Mat hsv = new Mat();
             Imgproc.cvtColor(input, hsv, Imgproc.COLOR_RGB2HSV);
 
+            Rect leftRoi = clampRect(new Rect(LEFT_X, ROI_Y, ROI_WIDTH, ROI_HEIGHT), hsv);
+            Rect centerRoi = clampRect(new Rect(CENTER_X, ROI_Y, ROI_WIDTH, ROI_HEIGHT), hsv);
+            Rect rightRoi = clampRect(new Rect(RIGHT_X, ROI_Y, ROI_WIDTH, ROI_HEIGHT), hsv);
+
             double leftScore = computeScore(hsv.submat(leftRoi));
             double centerScore = computeScore(hsv.submat(centerRoi));
             double rightScore = computeScore(hsv.submat(rightRoi));
 
+            leftAvg = smooth(leftAvg, leftScore);
+            centerAvg = smooth(centerAvg, centerScore);
+            rightAvg = smooth(rightAvg, rightScore);
+
             // choose the brightest ROI as the detected motif
-            if (leftScore > centerScore && leftScore > rightScore) {
+            if (leftAvg > centerAvg && leftAvg > rightAvg) {
                 currentMotif = DetectedMotif.MOTIF_A;
-            } else if (centerScore > rightScore) {
+            } else if (centerAvg > rightAvg) {
                 currentMotif = DetectedMotif.MOTIF_B;
             } else {
                 currentMotif = DetectedMotif.MOTIF_C;
@@ -111,8 +213,10 @@ public class VisionSubsystem {
             Imgproc.rectangle(input, leftRoi, new Scalar(255, 0, 0), 2);
             Imgproc.rectangle(input, centerRoi, new Scalar(0, 255, 0), 2);
             Imgproc.rectangle(input, rightRoi, new Scalar(0, 0, 255), 2);
-            Imgproc.putText(input, currentMotif.name(), new org.opencv.core.Point(20, 40),
+            Imgproc.putText(input, currentMotif.name(), new Point(20, 40),
                     Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, new Scalar(255, 255, 255), 2);
+            Imgproc.putText(input, String.format("L%.0f C%.0f R%.0f", leftAvg, centerAvg, rightAvg),
+                    new Point(20, 70), Imgproc.FONT_HERSHEY_SIMPLEX, 0.6, new Scalar(255, 255, 0), 2);
 
             hsv.release();
             return input;
@@ -120,24 +224,60 @@ public class VisionSubsystem {
 
         private double computeScore(Mat roi) {
             // blend multiple colors so different sleeve palettes still classify
+            Scalar lowerBlue = new Scalar(LOWER_BLUE);
+            Scalar upperBlue = new Scalar(UPPER_BLUE);
+            Scalar lowerGreen = new Scalar(LOWER_GREEN);
+            Scalar upperGreen = new Scalar(UPPER_GREEN);
+            Scalar lowerRed1 = new Scalar(LOWER_RED1);
+            Scalar upperRed1 = new Scalar(UPPER_RED1);
+            Scalar lowerRed2 = new Scalar(LOWER_RED2);
+            Scalar upperRed2 = new Scalar(UPPER_RED2);
+
             Mat blueMask = new Mat();
             Mat greenMask = new Mat();
             Mat redMask = new Mat();
             Mat redMask2 = new Mat();
-            Core.inRange(roi, LOWER_BLUE, UPPER_BLUE, blueMask);
-            Core.inRange(roi, LOWER_GREEN, UPPER_GREEN, greenMask);
-            Core.inRange(roi, LOWER_RED1, UPPER_RED1, redMask);
-            Core.inRange(roi, LOWER_RED2, UPPER_RED2, redMask2);
+            Mat combinedMask = new Mat();
+            Core.inRange(roi, lowerBlue, upperBlue, blueMask);
+            Core.inRange(roi, lowerGreen, upperGreen, greenMask);
+            Core.inRange(roi, lowerRed1, upperRed1, redMask);
+            Core.inRange(roi, lowerRed2, upperRed2, redMask2);
 
-            double score = Core.sumElems(blueMask).val[0] + Core.sumElems(greenMask).val[0]
-                    + Core.sumElems(redMask).val[0] + Core.sumElems(redMask2).val[0];
+            Core.add(blueMask, greenMask, combinedMask);
+            Core.add(combinedMask, redMask, combinedMask);
+            Core.add(combinedMask, redMask2, combinedMask);
+
+            double pixelSum = Core.sumElems(combinedMask).val[0];
+            double contourScore = computeContourArea(combinedMask);
+            double score = pixelSum * (1 - CONTOUR_WEIGHT) + contourScore * CONTOUR_WEIGHT;
 
             blueMask.release();
             greenMask.release();
             redMask.release();
             redMask2.release();
+            combinedMask.release();
             roi.release();
             return score;
+        }
+
+        private double computeContourArea(Mat mask) {
+            List<MatOfPoint> contours = new ArrayList<>();
+            Mat hierarchy = new Mat();
+            Imgproc.findContours(mask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+            double maxArea = 0;
+            for (MatOfPoint contour : contours) {
+                maxArea = Math.max(maxArea, Imgproc.contourArea(contour));
+                contour.release();
+            }
+            hierarchy.release();
+            return maxArea;
+        }
+
+        private double smooth(double previous, double current) {
+            if (previous == 0) {
+                return current;
+            }
+            return previous * SCORE_SMOOTHING + current * (1 - SCORE_SMOOTHING);
         }
 
         public DetectedMotif getCurrentMotif() {

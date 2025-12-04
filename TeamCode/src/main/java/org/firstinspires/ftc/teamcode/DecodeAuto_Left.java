@@ -30,7 +30,7 @@ public class DecodeAuto_Left extends LinearOpMode {
         intake = new IntakeSubsystem(hardwareMap);
         slides = new SlideSubsystem(hardwareMap);
         gate = new GateSubsystem(hardwareMap);
-        vision = new VisionSubsystem(hardwareMap);
+        vision = new VisionSubsystem(hardwareMap, telemetry);
 
         gate.close();
         vision.start();
@@ -39,7 +39,9 @@ public class DecodeAuto_Left extends LinearOpMode {
         DetectedMotif detectedMotif = DetectedMotif.MOTIF_A;
         while (!isStarted() && !isStopRequested()) {
             detectedMotif = vision.getCurrentMotif();
+            vision.applyCameraControls();
             telemetry.addData("Detected Motif", detectedMotif);
+            telemetry.addData("Vision camera", vision.getCameraStatus());
             telemetry.update();
         }
 
