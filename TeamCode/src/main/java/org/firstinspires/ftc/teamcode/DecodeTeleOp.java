@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
 
 import org.firstinspires.ftc.teamcode.subsystems.DriveSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.GateSubsystem;
@@ -25,8 +26,10 @@ public class DecodeTeleOp extends LinearOpMode {
     private GateSubsystem gate;
     private VisionSubsystem vision;
 
-    private enum MacroState {IDLE, GOING_UP, DUMPING, RETURNING}
-    private MacroState macroState = MacroState.IDLE;
+    private enum MacroType {NONE, RAPID_CYCLE, HANG, PARK}
+    private enum MacroStage {IDLE, COLLECTING, LIFTING, SCORING, RETURNING, HANG_EXTENDING, HANG_HOLDING, PARKING}
+    private MacroType activeMacro = MacroType.NONE;
+    private MacroStage macroStage = MacroStage.IDLE;
     private final ElapsedTime macroTimer = new ElapsedTime();
 
     private boolean headingHoldToggleLatch = false;
@@ -72,40 +75,43 @@ public class DecodeTeleOp extends LinearOpMode {
 
             drive.drive(x, y, rotation, slowMode);
 
-            // Intake control: right trigger sucks game pieces in, left trigger spits them back out
-            if (gamepad2.right_trigger > 0.1) {
-                intake.intakeIn();
-            } else if (gamepad2.left_trigger > 0.1) {
-                intake.intakeOut();
-            } else {
-                intake.stop();
-            }
-
-            // Gate control: A opens the bucket gate, B closes it
-            if (gamepad2.a) {
-                gate.open();
-            } else if (gamepad2.b) {
-                gate.close();
-            }
-
-            // Slide control + scoring macro
+            // Slide control + macros
             double slideInput = -gamepad2.left_stick_y; // push up to extend, pull down to retract
-            boolean macroRequested = gamepad2.y;
-            if (macroRequested && macroState == MacroState.IDLE) {
-                // Start a simple high-score macro: stop intake, raise, dump, return
-                intake.stop();
-                gate.close();
-                slides.goToPreset(SlidePreset.HIGH);
-                macroState = MacroState.GOING_UP;
+            boolean rapidCycleRequested = gamepad2.y;
+            boolean hangRequested = gamepad2.dpad_up;
+            boolean parkRequested = gamepad2.dpad_down;
+            boolean cancelRequested = gamepad2.left_bumper || Math.abs(slideInput) > 0.1 || gamepad2.a || gamepad2.b;
+
+            if (cancelRequested && activeMacro != MacroType.NONE) {
+                cancelMacro();
             }
 
-            if (Math.abs(slideInput) > 0.1 && macroState != MacroState.IDLE) {
-                // Driver intervention cancels the macro
-                macroState = MacroState.IDLE;
-            }
+            if (activeMacro == MacroType.NONE) {
+                // Intake control: right trigger sucks game pieces in, left trigger spits them back out
+                if (gamepad2.right_trigger > 0.1) {
+                    intake.intakeIn();
+                } else if (gamepad2.left_trigger > 0.1) {
+                    intake.intakeOut();
+                } else {
+                    intake.stop();
+                }
 
-            if (macroState == MacroState.IDLE) {
-                slides.manualControl(slideInput);
+                // Gate control: A opens the bucket gate, B closes it
+                if (gamepad2.a) {
+                    gate.open();
+                } else if (gamepad2.b) {
+                    gate.close();
+                }
+
+                if (rapidCycleRequested) {
+                    startRapidCycle();
+                } else if (hangRequested) {
+                    startHangMacro();
+                } else if (parkRequested) {
+                    startParkMacro();
+                } else {
+                    slides.manualControl(slideInput);
+                }
             } else {
                 runMacro();
             }
@@ -115,9 +121,19 @@ public class DecodeTeleOp extends LinearOpMode {
 
             telemetry.addData("Heading (deg)", "%.1f", drive.getHeadingDegrees());
             telemetry.addData("Heading hold", drive.isHeadingHoldEnabled());
+            telemetry.addData("Battery (V)", "%.2f", getBatteryVoltage());
+            telemetry.addData("Macro", activeMacro + " / " + macroStage);
             telemetry.addData("Slides target", slides.getTargetPosition());
             telemetry.addData("Slides pos", slides.getAveragePosition());
             telemetry.addData("Slide at target?", slides.isAtTarget());
+            telemetry.addData("Drive powers", "FL %.2f FR %.2f BL %.2f BR %.2f",
+                    drive.getFrontLeftPower(), drive.getFrontRightPower(),
+                    drive.getBackLeftPower(), drive.getBackRightPower());
+            telemetry.addData("Slide motors", "L %d (%.2f) R %d (%.2f)",
+                    slides.getLeftPosition(), slides.getLeftPower(),
+                    slides.getRightPosition(), slides.getRightPower());
+            telemetry.addData("Intake power", "%.2f", intake.getPower());
+            telemetry.addData("Gate position", "%.2f", gate.getPosition());
             telemetry.addData("Vision motif", detectedMotif);
             telemetry.update();
         }
@@ -130,31 +146,137 @@ public class DecodeTeleOp extends LinearOpMode {
         vision.stop();
     }
 
+    private void startRapidCycle() {
+        activeMacro = MacroType.RAPID_CYCLE;
+        macroStage = MacroStage.COLLECTING;
+        macroTimer.reset();
+        gate.close();
+        intake.intakeIn();
+        slides.goToPreset(SlidePreset.INTAKE);
+    }
+
+    private void startHangMacro() {
+        activeMacro = MacroType.HANG;
+        macroStage = MacroStage.HANG_EXTENDING;
+        macroTimer.reset();
+        intake.stop();
+        gate.close();
+        slides.goToPreset(SlidePreset.MAX);
+    }
+
+    private void startParkMacro() {
+        activeMacro = MacroType.PARK;
+        macroStage = MacroStage.PARKING;
+        macroTimer.reset();
+        intake.stop();
+        gate.close();
+        slides.goToPreset(SlidePreset.INTAKE);
+    }
+
+    private void cancelMacro() {
+        activeMacro = MacroType.NONE;
+        macroStage = MacroStage.IDLE;
+        intake.stop();
+        gate.close();
+    }
+
     private void runMacro() {
-        switch (macroState) {
-            case GOING_UP:
+        switch (activeMacro) {
+            case RAPID_CYCLE:
+                runRapidCycle();
+                break;
+            case HANG:
+                runHangMacro();
+                break;
+            case PARK:
+                runParkMacro();
+                break;
+            case NONE:
+            default:
+                break;
+        }
+    }
+
+    private void runRapidCycle() {
+        switch (macroStage) {
+            case COLLECTING:
+                // keep pulling in until we give the slides a moment to settle at intake
+                if (macroTimer.milliseconds() > 400) {
+                    intake.stop();
+                    slides.goToPreset(SlidePreset.HIGH);
+                    macroStage = MacroStage.LIFTING;
+                }
+                break;
+            case LIFTING:
                 if (slides.isAtTarget()) {
                     gate.open();
                     macroTimer.reset();
-                    macroState = MacroState.DUMPING;
+                    macroStage = MacroStage.SCORING;
                 }
                 break;
-            case DUMPING:
+            case SCORING:
                 if (macroTimer.milliseconds() > 600) {
                     gate.close();
                     slides.goToPreset(SlidePreset.INTAKE);
                     macroTimer.reset();
-                    macroState = MacroState.RETURNING;
+                    macroStage = MacroStage.RETURNING;
                 }
                 break;
             case RETURNING:
                 if (slides.isAtTarget()) {
-                    macroState = MacroState.IDLE;
+                    intake.stop();
+                    activeMacro = MacroType.NONE;
+                    macroStage = MacroStage.IDLE;
                 }
                 break;
             case IDLE:
             default:
+                activeMacro = MacroType.NONE;
+                macroStage = MacroStage.IDLE;
                 break;
         }
+    }
+
+    private void runHangMacro() {
+        switch (macroStage) {
+            case HANG_EXTENDING:
+                if (slides.isAtTarget()) {
+                    macroStage = MacroStage.HANG_HOLDING;
+                }
+                break;
+            case HANG_HOLDING:
+                // Stay extended while drivers maneuver; allow cancel to bail out
+                break;
+            default:
+                activeMacro = MacroType.NONE;
+                macroStage = MacroStage.IDLE;
+                break;
+        }
+    }
+
+    private void runParkMacro() {
+        switch (macroStage) {
+            case PARKING:
+                if (slides.isAtTarget()) {
+                    activeMacro = MacroType.NONE;
+                    macroStage = MacroStage.IDLE;
+                }
+                break;
+            default:
+                activeMacro = MacroType.NONE;
+                macroStage = MacroStage.IDLE;
+                break;
+        }
+    }
+
+    private double getBatteryVoltage() {
+        double minVoltage = Double.POSITIVE_INFINITY;
+        for (VoltageSensor sensor : hardwareMap.voltageSensor) {
+            double voltage = sensor.getVoltage();
+            if (voltage > 0) {
+                minVoltage = Math.min(minVoltage, voltage);
+            }
+        }
+        return minVoltage == Double.POSITIVE_INFINITY ? 0.0 : minVoltage;
     }
 }

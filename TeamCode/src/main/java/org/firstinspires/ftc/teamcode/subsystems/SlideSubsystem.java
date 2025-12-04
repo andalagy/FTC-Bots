@@ -118,12 +118,28 @@ public class SlideSubsystem {
         return (leftSlide.getCurrentPosition() + rightSlide.getCurrentPosition()) / 2;
     }
 
+    public int getLeftPosition() {
+        return leftSlide.getCurrentPosition();
+    }
+
+    public int getRightPosition() {
+        return rightSlide.getCurrentPosition();
+    }
+
     public boolean isAtTarget() {
         return Math.abs(getAveragePosition() - targetPositionTicks) <= RobotConstants.SLIDE_POSITION_TOLERANCE;
     }
 
     public int getTargetPosition() {
         return targetPositionTicks;
+    }
+
+    public double getLeftPower() {
+        return leftSlide.getPower();
+    }
+
+    public double getRightPower() {
+        return rightSlide.getPower();
     }
 
     private void moveToPosition(int targetTicks) {

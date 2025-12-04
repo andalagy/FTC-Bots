@@ -29,4 +29,8 @@ public class GateSubsystem {
     public void dump() {
         open();
     }
+
+    public double getPosition() {
+        return gateServo.getPosition();
+    }
 }
