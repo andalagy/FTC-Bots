@@ -10,9 +10,12 @@ import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem.SlidePreset;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
+import org.firstinspires.ftc.teamcode.geometry.Pose2d;
+import org.firstinspires.ftc.teamcode.trajectory.Trajectory;
+import org.firstinspires.ftc.teamcode.trajectory.TrajectoryBuilder;
 
 /**
- * Right-side auto that uses encoder + IMU helpers for multi-segment scoring.
+ * Right-side auto that uses trajectory building + odometry for multi-segment scoring.
  * Includes a simple one-cycle branch and mirrored variant for the opposite wall.
  */
 @Autonomous(name = "Decode Auto Right", group = "Main")
@@ -51,25 +54,26 @@ public class DecodeAuto_Right extends LinearOpMode {
             return;
         }
 
+        Pose2d startPose = new Pose2d(0, 0, 0);
+        drive.setPoseEstimate(startPose);
         drive.resetHeading();
         detectedMotif = vision.getCurrentMotif();
         double mirror = isMirrored() ? -1.0 : 1.0;
 
-        // 1. leave the launch line and bias toward the right wall
-        drive.driveStraightWithHeading(22, 0.55, 0, this);
-
-        // 2. raise slides while shifting over to the right spike/backdrop lane
+        // 1-3. leave the launch line, slide over, and ease into the backdrop lane
         slides.goToPreset(SlidePreset.HIGH);
-        drive.strafeWithHeading(10 * mirror, 0.55, 0, this);
+        Trajectory preloadPath = new TrajectoryBuilder(startPose)
+                .lineTo(new Pose2d(0, 22, 0), 0.65)
+                .lineTo(new Pose2d(10 * mirror, 22, 0), 0.6)
+                .lineTo(new Pose2d(10 * mirror, 30, 0), 0.45)
+                .build();
+        drive.followTrajectory(preloadPath, this);
         while (opModeIsActive() && !slides.isAtTarget()) {
             telemetry.addData("Step", "Raising slides");
             telemetry.addData("Slide pos", slides.getAveragePosition());
             telemetry.update();
             idle();
         }
-
-        // 3. bump into scoring range and dump the preload
-        drive.driveStraightWithHeading(8, 0.35, 0, this);
         gate.open();
         sleep(600);
         gate.close();
@@ -77,16 +81,23 @@ public class DecodeAuto_Right extends LinearOpMode {
         // 4. optional quick cycle: dip to the stack, grab, and re-score at LOW
         if (cycleRequested) {
             slides.goToPreset(SlidePreset.INTAKE);
-            drive.driveStraightWithHeading(-12, 0.45, 0, this);
-            drive.strafeWithHeading(-8 * mirror, 0.5, 0, this);
-
+            Trajectory toStack = new TrajectoryBuilder(drive.getPoseEstimate())
+                    .lineTo(new Pose2d(drive.getPoseEstimate().x, drive.getPoseEstimate().y - 12, 0), 0.55)
+                    .lineTo(new Pose2d(drive.getPoseEstimate().x - (8 * mirror), drive.getPoseEstimate().y - 12, 0), 0.55)
+                    .lineTo(new Pose2d(drive.getPoseEstimate().x - (8 * mirror), drive.getPoseEstimate().y - 2, 0), 0.4)
+                    .build();
+            drive.followTrajectory(toStack, this);
             intake.intakeIn();
-            drive.driveStraightWithHeading(10, 0.35, 0, this); // creep into the stack
             sleep(500);
-            drive.driveStraightWithHeading(-10, 0.4, 0, this);
+            Trajectory backOut = new TrajectoryBuilder(drive.getPoseEstimate())
+                    .lineTo(new Pose2d(drive.getPoseEstimate().x, drive.getPoseEstimate().y - 10, 0), 0.45)
+                    .build();
+            drive.followTrajectory(backOut, this);
             intake.stop();
-
-            drive.strafeWithHeading(6 * mirror, 0.55, 0, this);
+            Trajectory reAlign = new TrajectoryBuilder(drive.getPoseEstimate())
+                    .strafeTo(drive.getPoseEstimate().x + (6 * mirror), drive.getPoseEstimate().y, 0.55)
+                    .build();
+            drive.followTrajectory(reAlign, this);
             slides.goToPreset(SlidePreset.LOW);
             while (opModeIsActive() && !slides.isAtTarget()) {
                 telemetry.addData("Step", "Cycling to LOW");
@@ -94,8 +105,10 @@ public class DecodeAuto_Right extends LinearOpMode {
                 telemetry.update();
                 idle();
             }
-
-            drive.driveStraightWithHeading(6, 0.35, 0, this);
+            Trajectory reScore = new TrajectoryBuilder(drive.getPoseEstimate())
+                    .lineTo(new Pose2d(drive.getPoseEstimate().x, drive.getPoseEstimate().y + 6, 0), 0.4)
+                    .build();
+            drive.followTrajectory(reScore, this);
             gate.open();
             sleep(450);
             gate.close();
@@ -103,11 +116,20 @@ public class DecodeAuto_Right extends LinearOpMode {
 
         // 5. retract and park according to the detected motif
         slides.goToPreset(SlidePreset.INTAKE);
-        drive.driveStraightWithHeading(-6, 0.45, 0, this);
+        Trajectory clearBackdrop = new TrajectoryBuilder(drive.getPoseEstimate())
+                .lineTo(new Pose2d(drive.getPoseEstimate().x, drive.getPoseEstimate().y - 6, 0), 0.55)
+                .build();
+        drive.followTrajectory(clearBackdrop, this);
         if (detectedMotif == DetectedMotif.MOTIF_A) {
-            drive.strafeWithHeading(-14 * mirror, 0.5, 0, this);
+            Trajectory parkLeft = new TrajectoryBuilder(drive.getPoseEstimate())
+                    .strafeTo(drive.getPoseEstimate().x - (14 * mirror), drive.getPoseEstimate().y, 0.55)
+                    .build();
+            drive.followTrajectory(parkLeft, this);
         } else if (detectedMotif == DetectedMotif.MOTIF_C) {
-            drive.strafeWithHeading(14 * mirror, 0.5, 0, this);
+            Trajectory parkRight = new TrajectoryBuilder(drive.getPoseEstimate())
+                    .strafeTo(drive.getPoseEstimate().x + (14 * mirror), drive.getPoseEstimate().y, 0.55)
+                    .build();
+            drive.followTrajectory(parkRight, this);
         }
 
         drive.stop();

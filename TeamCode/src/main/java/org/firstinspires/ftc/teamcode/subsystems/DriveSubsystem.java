@@ -11,11 +11,16 @@ import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.RobotConstants;
+import org.firstinspires.ftc.teamcode.drive.OdometryPoseEstimator;
+import org.firstinspires.ftc.teamcode.geometry.AngleUtil;
+import org.firstinspires.ftc.teamcode.geometry.Pose2d;
+import org.firstinspires.ftc.teamcode.trajectory.Trajectory;
+import org.firstinspires.ftc.teamcode.trajectory.segments.TrajectorySegment;
 
 /**
- * Drives the mecanum drivetrain and keeps track of heading for field-centric control.
- * The IMU gives us robot yaw so we can rotate joystick input into field space.
- * Use resetHeading() whenever the driver's sense of "forward" no longer matches the bot.
+ * Drives the mecanum drivetrain, tracks pose, and exposes trajectory-following helpers.
+ * Field-centric drive still uses the IMU yaw, now fused into the pose estimator so the heading
+ * offset knob is honored everywhere.
  */
 public class DriveSubsystem {
     private final DcMotor frontLeft;
@@ -24,9 +29,15 @@ public class DriveSubsystem {
     private final DcMotor backRight;
     private final IMU imu;
 
+    private final OdometryPoseEstimator poseEstimator;
+    private Pose2d poseEstimate = new Pose2d(0, 0, 0);
+
     private double headingOffset = 0; // little offset knob so we can re-zero during TeleOp
     private boolean headingHoldEnabled = false;
     private double headingHoldTargetRadians = 0;
+
+    private boolean turnInProgress = false;
+    private double turnTargetRadians = 0;
 
     public DriveSubsystem(HardwareMap hardwareMap) {
         frontLeft = hardwareMap.get(DcMotor.class, RobotConstants.FRONT_LEFT_NAME);
@@ -42,11 +53,18 @@ public class DriveSubsystem {
         backLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         backRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
+        frontLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        frontRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
         imu = hardwareMap.get(IMU.class, RobotConstants.IMU_NAME);
         // tell the hub how it's actually bolted on so yaw numbers aren't wacky ->
         IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
                 LogoFacingDirection.UP, UsbFacingDirection.FORWARD));
         imu.initialize(parameters);
+
+        poseEstimator = new OdometryPoseEstimator(poseEstimate, getHeadingRadians(), getWheelPositionsInches());
     }
 
     /**
@@ -55,6 +73,7 @@ public class DriveSubsystem {
      * Rotation input is blended in and everything gets normalized so no wheel commands exceed ±1.
      */
     public void drive(double x, double y, double rotation, boolean slowMode) {
+        updatePoseEstimate();
         double heading = getHeadingRadians();
         // rotate the joystick vector by the robot heading so controls stay field oriented
         double rotatedX = x * Math.cos(-heading) - y * Math.sin(-heading);
@@ -74,10 +93,7 @@ public class DriveSubsystem {
         double backRightPower = (rotatedY + rotatedX - rotation) / denominator;
 
         double scale = slowMode ? RobotConstants.SLOW_SPEED : RobotConstants.NORMAL_SPEED;
-        frontLeft.setPower(frontLeftPower * scale);
-        frontRight.setPower(frontRightPower * scale);
-        backLeft.setPower(backLeftPower * scale);
-        backRight.setPower(backRightPower * scale);
+        setWheelPowers(frontLeftPower * scale, frontRightPower * scale, backLeftPower * scale, backRightPower * scale);
     }
 
     public void stop() {
@@ -107,6 +123,7 @@ public class DriveSubsystem {
     public void resetHeading() {
         headingOffset = getRawHeadingRadians();
         headingHoldTargetRadians = 0;
+        setPoseEstimate(new Pose2d(poseEstimate.x, poseEstimate.y, 0));
     }
 
     /** quick helper for telemetry so drivers can see field heading in degrees. */
@@ -131,6 +148,87 @@ public class DriveSubsystem {
 
     public boolean isHeadingHoldEnabled() {
         return headingHoldEnabled;
+    }
+
+    public void followTrajectory(Trajectory trajectory, LinearOpMode opMode) {
+        setPoseEstimate(trajectory.getStartPose());
+        for (TrajectorySegment segment : trajectory.getSegments()) {
+            segment.follow(this, opMode);
+        }
+        stop();
+    }
+
+    public void driveToPose(Pose2d targetPose, double maxPower, LinearOpMode opMode) {
+        while (opMode.opModeIsActive()) {
+            updatePoseEstimate();
+            Pose2d current = getPoseEstimate();
+
+            double dx = targetPose.x - current.x;
+            double dy = targetPose.y - current.y;
+            double distance = Math.hypot(dx, dy);
+            double headingError = AngleUtil.normalizeRadians(targetPose.heading - current.heading);
+
+            if (distance < RobotConstants.TRAJECTORY_POSITION_TOLERANCE_IN
+                    && Math.abs(headingError) < RobotConstants.TRAJECTORY_HEADING_TOLERANCE_RAD) {
+                break;
+            }
+
+            double robotX = dx * Math.cos(-current.heading) - dy * Math.sin(-current.heading);
+            double robotY = dx * Math.sin(-current.heading) + dy * Math.cos(-current.heading);
+
+            double xCommand = Range.clip(robotX * RobotConstants.TRAJECTORY_KP_TRANSLATION, -maxPower, maxPower);
+            double yCommand = Range.clip(robotY * RobotConstants.TRAJECTORY_KP_TRANSLATION, -maxPower, maxPower);
+            double turn = Range.clip(headingError * RobotConstants.TRAJECTORY_KP_HEADING,
+                    -maxPower, maxPower);
+
+            double denominator = Math.max(Math.abs(yCommand) + Math.abs(xCommand) + Math.abs(turn), 1.0);
+            setWheelPowers((yCommand + xCommand + turn) / denominator * maxPower,
+                    (yCommand - xCommand - turn) / denominator * maxPower,
+                    (yCommand - xCommand + turn) / denominator * maxPower,
+                    (yCommand + xCommand - turn) / denominator * maxPower);
+            opMode.idle();
+        }
+        stop();
+        headingHoldTargetRadians = getHeadingRadians();
+    }
+
+    public void turnAsync(double targetHeadingDeg) {
+        turnTargetRadians = Math.toRadians(targetHeadingDeg);
+        turnInProgress = true;
+    }
+
+    public boolean isTurnInProgress() {
+        return turnInProgress;
+    }
+
+    public void updateAsync(LinearOpMode opMode) {
+        updatePoseEstimate();
+        if (turnInProgress && opMode.opModeIsActive()) {
+            double headingError = AngleUtil.normalizeRadians(turnTargetRadians - getHeadingRadians());
+            if (Math.abs(headingError) < RobotConstants.TRAJECTORY_HEADING_TOLERANCE_RAD) {
+                stop();
+                turnInProgress = false;
+                headingHoldTargetRadians = getHeadingRadians();
+                return;
+            }
+            double turn = Range.clip(headingError * RobotConstants.TRAJECTORY_KP_HEADING,
+                    -RobotConstants.NORMAL_SPEED, RobotConstants.NORMAL_SPEED);
+            setWheelPowers(turn, -turn, turn, -turn);
+        }
+    }
+
+    public void setPoseEstimate(Pose2d pose) {
+        poseEstimate = pose;
+        poseEstimator.reset(pose, getHeadingRadians(), getWheelPositionsInches());
+    }
+
+    public Pose2d getPoseEstimate() {
+        return poseEstimate;
+    }
+
+    public void updatePoseEstimate() {
+        poseEstimator.update(getHeadingRadians(), getWheelPositionsInches());
+        poseEstimate = poseEstimator.getPoseEstimate();
     }
 
     /** reset all four drive encoders and prepare for encoder-based motion */
@@ -211,6 +309,19 @@ public class DriveSubsystem {
 
     private int ticksFromInches(double inches) {
         return (int) Math.round(inches * RobotConstants.DRIVE_TICKS_PER_INCH);
+    }
+
+    private double ticksToInches(int ticks) {
+        return ticks / RobotConstants.DRIVE_TICKS_PER_INCH;
+    }
+
+    private double[] getWheelPositionsInches() {
+        return new double[]{
+                ticksToInches(frontLeft.getCurrentPosition()),
+                ticksToInches(frontRight.getCurrentPosition()),
+                ticksToInches(backLeft.getCurrentPosition()),
+                ticksToInches(backRight.getCurrentPosition())
+        };
     }
 
     private double getAverageEncoderPosition() {
