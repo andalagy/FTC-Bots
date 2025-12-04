@@ -2,12 +2,15 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.subsystems.DriveSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.GateSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem.SlidePreset;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
 
 /**
  * Driver-controlled program that wires gamepad inputs into the drive, intake, slides, and gate.
@@ -22,6 +25,12 @@ public class DecodeTeleOp extends LinearOpMode {
     private GateSubsystem gate;
     private VisionSubsystem vision;
 
+    private enum MacroState {IDLE, GOING_UP, DUMPING, RETURNING}
+    private MacroState macroState = MacroState.IDLE;
+    private final ElapsedTime macroTimer = new ElapsedTime();
+
+    private boolean headingHoldToggleLatch = false;
+
     @Override
     public void runOpMode() throws InterruptedException {
         // Build each subsystem so we reuse the same hardware mapping everywhere
@@ -32,6 +41,7 @@ public class DecodeTeleOp extends LinearOpMode {
         vision = new VisionSubsystem(hardwareMap);
 
         gate.close();
+        vision.start();
         telemetry.addLine("TeleOp ready — press play when the field says go");
         telemetry.update();
 
@@ -40,6 +50,7 @@ public class DecodeTeleOp extends LinearOpMode {
 
         // zero heading before moving so field-centric drive lines up with the real field
         drive.resetHeading();
+        drive.enableHeadingHold(false);
 
         while (opModeIsActive()) {
             // Drive control: left stick moves the robot around the field, right stick rotates it like a car joystick
@@ -50,6 +61,12 @@ public class DecodeTeleOp extends LinearOpMode {
             if (gamepad1.left_bumper) {
                 drive.resetHeading(); // quick re-zero if field-centric starts to feel off
             }
+            boolean headingHoldButton = gamepad1.x;
+            if (headingHoldButton && !headingHoldToggleLatch) {
+                drive.enableHeadingHold(!drive.isHeadingHoldEnabled());
+            }
+            headingHoldToggleLatch = headingHoldButton;
+
             drive.drive(x, y, rotation, slowMode);
 
             // Intake control: right trigger sucks game pieces in, left trigger spits them back out
@@ -68,15 +85,36 @@ public class DecodeTeleOp extends LinearOpMode {
                 gate.close();
             }
 
-            // Slide control: left stick on gamepad 2 raises or lowers with simple soft limits
+            // Slide control + scoring macro
             double slideInput = -gamepad2.left_stick_y; // push up to extend, pull down to retract
-            slides.manualControl(slideInput);
+            boolean macroRequested = gamepad2.y;
+            if (macroRequested && macroState == MacroState.IDLE) {
+                // Start a simple high-score macro: stop intake, raise, dump, return
+                intake.stop();
+                gate.close();
+                slides.goToPreset(SlidePreset.HIGH);
+                macroState = MacroState.GOING_UP;
+            }
 
-            // Vision heartbeat: placeholder call so we know the camera thread won't crash the OpMode later
-            VisionSubsystem.DetectedMotif detectedMotif = vision.detectMotif();
+            if (Math.abs(slideInput) > 0.1 && macroState != MacroState.IDLE) {
+                // Driver intervention cancels the macro
+                macroState = MacroState.IDLE;
+            }
+
+            if (macroState == MacroState.IDLE) {
+                slides.manualControl(slideInput);
+            } else {
+                runMacro();
+            }
+
+            // Vision heartbeat: report live motif
+            DetectedMotif detectedMotif = vision.getCurrentMotif();
 
             telemetry.addData("Heading (deg)", "%.1f", drive.getHeadingDegrees());
-            telemetry.addData("Slides (ticks)", slides.getAveragePosition());
+            telemetry.addData("Heading hold", drive.isHeadingHoldEnabled());
+            telemetry.addData("Slides target", slides.getTargetPosition());
+            telemetry.addData("Slides pos", slides.getAveragePosition());
+            telemetry.addData("Slide at target?", slides.isAtTarget());
             telemetry.addData("Vision motif", detectedMotif);
             telemetry.update();
         }
@@ -86,5 +124,34 @@ public class DecodeTeleOp extends LinearOpMode {
         intake.stop();
         slides.stop();
         gate.close();
+        vision.stop();
+    }
+
+    private void runMacro() {
+        switch (macroState) {
+            case GOING_UP:
+                if (slides.isAtTarget()) {
+                    gate.open();
+                    macroTimer.reset();
+                    macroState = MacroState.DUMPING;
+                }
+                break;
+            case DUMPING:
+                if (macroTimer.milliseconds() > 600) {
+                    gate.close();
+                    slides.goToPreset(SlidePreset.INTAKE);
+                    macroTimer.reset();
+                    macroState = MacroState.RETURNING;
+                }
+                break;
+            case RETURNING:
+                if (slides.isAtTarget()) {
+                    macroState = MacroState.IDLE;
+                }
+                break;
+            case IDLE:
+            default:
+                break;
+        }
     }
 }

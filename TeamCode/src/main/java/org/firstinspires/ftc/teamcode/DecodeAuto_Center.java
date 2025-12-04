@@ -12,12 +12,11 @@ import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
 
 /**
- * Left-side auto that drives off the line, scores the preload, and parks based on the detected motif.
- * Uses encoder + IMU helpers for straighter paths without Road Runner.
+ * Center-side auto with the same subsystems as TeleOp.
+ * Drives forward to score the preload, branches parking based on the detected motif.
  */
-@Autonomous(name = "Decode Auto Left", group = "Main")
-public class DecodeAuto_Left extends LinearOpMode {
-
+@Autonomous(name = "Decode Auto Center", group = "Main")
+public class DecodeAuto_Center extends LinearOpMode {
     private DriveSubsystem drive;
     private IntakeSubsystem intake;
     private SlideSubsystem slides;
@@ -35,8 +34,7 @@ public class DecodeAuto_Left extends LinearOpMode {
         gate.close();
         vision.start();
 
-        // update telemetry during init so drivers see the live motif
-        DetectedMotif detectedMotif = DetectedMotif.MOTIF_A;
+        DetectedMotif detectedMotif = DetectedMotif.MOTIF_B;
         while (!isStarted() && !isStopRequested()) {
             detectedMotif = vision.getCurrentMotif();
             telemetry.addData("Detected Motif", detectedMotif);
@@ -52,12 +50,11 @@ public class DecodeAuto_Left extends LinearOpMode {
         drive.resetHeading();
         detectedMotif = vision.getCurrentMotif();
 
-        // 1. leave the Launch Line
-        drive.driveStraightWithHeading(20, 0.5, 0, this);
+        // 1. drive straight to the backdrop
+        drive.driveStraightWithHeading(26, 0.55, 0, this);
 
-        // 2. slide up while strafing toward the left spike mark/backdrop
+        // 2. raise slides and score
         slides.goToPreset(SlidePreset.HIGH);
-        drive.strafeWithHeading(-8, 0.5, 0, this);
         while (opModeIsActive() && !slides.isAtTarget()) {
             telemetry.addData("Step", "Raising slides");
             telemetry.addData("Slide pos", slides.getAveragePosition());
@@ -65,22 +62,18 @@ public class DecodeAuto_Left extends LinearOpMode {
             idle();
         }
 
-        // 3. bump forward to scoring position and dump
-        drive.driveStraightWithHeading(8, 0.35, 0, this);
         gate.open();
         sleep(600);
         gate.close();
 
-        // 4. drop slides and back away
+        // 3. retract and park according to the motif
         slides.goToPreset(SlidePreset.INTAKE);
-        drive.driveStraightWithHeading(-8, 0.4, 0, this);
-
-        // 5. park based on motif
+        drive.driveStraightWithHeading(-6, 0.45, 0, this);
         if (detectedMotif == DetectedMotif.MOTIF_A) {
-            drive.strafeWithHeading(-16, 0.5, 0, this); // left parking zone
+            drive.strafeWithHeading(-12, 0.45, 0, this);
         } else if (detectedMotif == DetectedMotif.MOTIF_C) {
-            drive.strafeWithHeading(16, 0.5, 0, this); // right parking zone
-        } // motif B stays put
+            drive.strafeWithHeading(12, 0.45, 0, this);
+        }
 
         drive.stop();
         vision.stop();
