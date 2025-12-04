@@ -10,6 +10,7 @@ import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SlideSubsystem.SlidePreset;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
+import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.BackdropTarget;
 
 /**
  * Right-side auto that uses encoder + IMU helpers for multi-segment scoring.
@@ -53,6 +54,7 @@ public class DecodeAuto_Right extends LinearOpMode {
 
         drive.resetHeading();
         detectedMotif = vision.getCurrentMotif();
+        vision.useAprilTags();
         double mirror = isMirrored() ? -1.0 : 1.0;
 
         // 1. leave the launch line and bias toward the right wall
@@ -75,6 +77,12 @@ public class DecodeAuto_Right extends LinearOpMode {
 
         // 3. bump into scoring range and dump the preload
         drive.driveStraightWithHeading(8, 0.35, 0, this);
+
+        BackdropTarget target = vision.getBackdropTarget(detectedMotif);
+        if (target != null) {
+            double strafe = Math.max(-10, Math.min(10, target.getLateralInches() * mirror));
+            drive.strafeWithHeading(strafe, 0.35, 0, this);
+        }
         gate.open();
         sleep(600);
         gate.close();
@@ -120,6 +128,10 @@ public class DecodeAuto_Right extends LinearOpMode {
         } else if (detectedMotif == DetectedMotif.MOTIF_C) {
             drive.strafeWithHeading(14 * mirror, 0.5, 0, this);
         }
+
+        target = vision.getBackdropTarget(detectedMotif);
+        telemetry.addData("Parking tag", target != null ? target.tagId : "none");
+        telemetry.update();
 
         drive.stop();
         vision.stop();
