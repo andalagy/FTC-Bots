@@ -63,11 +63,16 @@ public class DecodeAuto_Right extends LinearOpMode {
         // 2. raise slides while shifting over to the right spike/backdrop lane
         slides.goToPreset(SlidePreset.HIGH);
         drive.strafeWithHeading(10 * mirror, 0.55, 0, this);
-        while (opModeIsActive() && !slides.isAtTarget()) {
+        while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
             telemetry.addData("Step", "Raising slides");
-            telemetry.addData("Slide pos", slides.getAveragePosition());
+            slides.addTelemetry(telemetry);
             telemetry.update();
             idle();
+        }
+        if (slides.isFaulted()) {
+            telemetry.addData("Slide fault", slides.getFaultReason());
+            telemetry.update();
+            return;
         }
 
         // 3. bump into scoring range and dump the preload
@@ -96,11 +101,17 @@ public class DecodeAuto_Right extends LinearOpMode {
 
             drive.strafeWithHeading(6 * mirror, 0.55, 0, this);
             slides.goToPreset(SlidePreset.LOW);
-            while (opModeIsActive() && !slides.isAtTarget()) {
+            while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
                 telemetry.addData("Step", "Cycling to LOW");
-                telemetry.addData("Slide pos", slides.getAveragePosition());
+                slides.addTelemetry(telemetry);
                 telemetry.update();
                 idle();
+            }
+
+            if (slides.isFaulted()) {
+                telemetry.addData("Slide fault", slides.getFaultReason());
+                telemetry.update();
+                return;
             }
 
             drive.driveStraightWithHeading(6, 0.35, 0, this);

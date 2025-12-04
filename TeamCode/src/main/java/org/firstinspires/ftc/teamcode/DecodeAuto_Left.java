@@ -62,12 +62,16 @@ public class DecodeAuto_Left extends LinearOpMode {
         // 2. slide up while strafing toward the left spike mark/backdrop
         slides.goToPreset(SlidePreset.HIGH);
         drive.strafeWithHeading(-8, 0.5, 0, this);
-        while (opModeIsActive() && !slides.isAtTarget()) {
+        while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
             telemetry.addData("Step", "Raising slides");
-            telemetry.addData("Slide pos", slides.getAveragePosition());
-            telemetry.addData("Tag seen?", vision.getBackdropTarget(detectedMotif) != null);
+            slides.addTelemetry(telemetry);
             telemetry.update();
             idle();
+        }
+        if (slides.isFaulted()) {
+            telemetry.addData("Slide fault", slides.getFaultReason());
+            telemetry.update();
+            return;
         }
 
         // 3. bump forward to scoring position and dump

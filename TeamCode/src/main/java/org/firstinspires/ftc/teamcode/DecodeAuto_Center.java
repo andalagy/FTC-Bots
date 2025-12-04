@@ -66,7 +66,7 @@ public class DecodeAuto_Center extends LinearOpMode {
 
         // 2. raise slides and score
         slides.goToPreset(SlidePreset.HIGH);
-        while (opModeIsActive() && !slides.isAtTarget()) {
+        while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
             telemetry.addData("Step", "Raising slides");
             telemetry.addData("Slide pos", slides.getAveragePosition());
             if (target == null) {
@@ -75,6 +75,11 @@ public class DecodeAuto_Center extends LinearOpMode {
             telemetry.addData("Tag seen?", target != null);
             telemetry.update();
             idle();
+        }
+        if (slides.isFaulted()) {
+            telemetry.addData("Slide fault", slides.getFaultReason());
+            telemetry.update();
+            return;
         }
 
         gate.open();
