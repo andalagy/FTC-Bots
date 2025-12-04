@@ -70,17 +70,18 @@ public class DecodeAuto_Left extends LinearOpMode {
                 .build();
         drive.followTrajectory(preloadPath, this);
         while (opModeIsActive() && !slides.isAtTarget()) {
-        drive.strafeWithHeading(-8, 0.5, 0, this);
-        while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
-            telemetry.addData("Step", "Raising slides");
-            slides.addTelemetry(telemetry);
-            telemetry.update();
-            idle();
-        }
-        if (slides.isFaulted()) {
-            telemetry.addData("Slide fault", slides.getFaultReason());
-            telemetry.update();
-            return;
+            drive.strafeWithHeading(-8, 0.5, 0, this);
+            while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
+                telemetry.addData("Step", "Raising slides");
+                slides.addTelemetry(telemetry);
+                telemetry.update();
+                idle();
+            }
+            if (slides.isFaulted()) {
+                telemetry.addData("Slide fault", slides.getFaultReason());
+                telemetry.update();
+                return;
+            }
         }
 
         // 3. bump forward to scoring position and dump
