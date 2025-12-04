@@ -87,6 +87,22 @@ public class DriveSubsystem {
         backRight.setPower(0);
     }
 
+    public double getFrontLeftPower() {
+        return frontLeft.getPower();
+    }
+
+    public double getFrontRightPower() {
+        return frontRight.getPower();
+    }
+
+    public double getBackLeftPower() {
+        return backLeft.getPower();
+    }
+
+    public double getBackRightPower() {
+        return backRight.getPower();
+    }
+
     /** sets whatever yaw we're at as the new "zero" for field-centric stuff. */
     public void resetHeading() {
         headingOffset = getRawHeadingRadians();

@@ -31,4 +31,8 @@ public class IntakeSubsystem {
     public void stop() {
         intakeMotor.setPower(0);
     }
+
+    public double getPower() {
+        return intakeMotor.getPower();
+    }
 }
