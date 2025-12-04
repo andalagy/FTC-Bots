@@ -71,17 +71,18 @@ public class DecodeAuto_Right extends LinearOpMode {
                 .build();
         drive.followTrajectory(preloadPath, this);
         while (opModeIsActive() && !slides.isAtTarget()) {
-        drive.strafeWithHeading(10 * mirror, 0.55, 0, this);
-        while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
-            telemetry.addData("Step", "Raising slides");
-            slides.addTelemetry(telemetry);
-            telemetry.update();
-            idle();
-        }
-        if (slides.isFaulted()) {
-            telemetry.addData("Slide fault", slides.getFaultReason());
-            telemetry.update();
-            return;
+            drive.strafeWithHeading(10 * mirror, 0.55, 0, this);
+            while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
+                telemetry.addData("Step", "Raising slides");
+                slides.addTelemetry(telemetry);
+                telemetry.update();
+                idle();
+            }
+            if (slides.isFaulted()) {
+                telemetry.addData("Slide fault", slides.getFaultReason());
+                telemetry.update();
+                return;
+            }
         }
 
         // 3. bump into scoring range and dump the preload
