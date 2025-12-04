@@ -13,6 +13,7 @@ import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
 import org.firstinspires.ftc.teamcode.geometry.Pose2d;
 import org.firstinspires.ftc.teamcode.trajectory.Trajectory;
 import org.firstinspires.ftc.teamcode.trajectory.TrajectoryBuilder;
+import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.BackdropTarget;
 
 /**
  * Right-side auto that uses trajectory building + odometry for multi-segment scoring.
@@ -58,6 +59,7 @@ public class DecodeAuto_Right extends LinearOpMode {
         drive.setPoseEstimate(startPose);
         drive.resetHeading();
         detectedMotif = vision.getCurrentMotif();
+        vision.useAprilTags();
         double mirror = isMirrored() ? -1.0 : 1.0;
 
         // 1-3. leave the launch line, slide over, and ease into the backdrop lane
@@ -69,10 +71,26 @@ public class DecodeAuto_Right extends LinearOpMode {
                 .build();
         drive.followTrajectory(preloadPath, this);
         while (opModeIsActive() && !slides.isAtTarget()) {
+        drive.strafeWithHeading(10 * mirror, 0.55, 0, this);
+        while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
             telemetry.addData("Step", "Raising slides");
-            telemetry.addData("Slide pos", slides.getAveragePosition());
+            slides.addTelemetry(telemetry);
             telemetry.update();
             idle();
+        }
+        if (slides.isFaulted()) {
+            telemetry.addData("Slide fault", slides.getFaultReason());
+            telemetry.update();
+            return;
+        }
+
+        // 3. bump into scoring range and dump the preload
+        drive.driveStraightWithHeading(8, 0.35, 0, this);
+
+        BackdropTarget target = vision.getBackdropTarget(detectedMotif);
+        if (target != null) {
+            double strafe = Math.max(-10, Math.min(10, target.getLateralInches() * mirror));
+            drive.strafeWithHeading(strafe, 0.35, 0, this);
         }
         gate.open();
         sleep(600);
@@ -99,9 +117,9 @@ public class DecodeAuto_Right extends LinearOpMode {
                     .build();
             drive.followTrajectory(reAlign, this);
             slides.goToPreset(SlidePreset.LOW);
-            while (opModeIsActive() && !slides.isAtTarget()) {
+            while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
                 telemetry.addData("Step", "Cycling to LOW");
-                telemetry.addData("Slide pos", slides.getAveragePosition());
+                slides.addTelemetry(telemetry);
                 telemetry.update();
                 idle();
             }
@@ -109,6 +127,14 @@ public class DecodeAuto_Right extends LinearOpMode {
                     .lineTo(new Pose2d(drive.getPoseEstimate().x, drive.getPoseEstimate().y + 6, 0), 0.4)
                     .build();
             drive.followTrajectory(reScore, this);
+
+            if (slides.isFaulted()) {
+                telemetry.addData("Slide fault", slides.getFaultReason());
+                telemetry.update();
+                return;
+            }
+
+            drive.driveStraightWithHeading(6, 0.35, 0, this);
             gate.open();
             sleep(450);
             gate.close();
@@ -131,6 +157,10 @@ public class DecodeAuto_Right extends LinearOpMode {
                     .build();
             drive.followTrajectory(parkRight, this);
         }
+
+        target = vision.getBackdropTarget(detectedMotif);
+        telemetry.addData("Parking tag", target != null ? target.tagId : "none");
+        telemetry.update();
 
         drive.stop();
         vision.stop();

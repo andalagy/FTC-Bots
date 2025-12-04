@@ -13,6 +13,7 @@ import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.DetectedMotif;
 import org.firstinspires.ftc.teamcode.geometry.Pose2d;
 import org.firstinspires.ftc.teamcode.trajectory.Trajectory;
 import org.firstinspires.ftc.teamcode.trajectory.TrajectoryBuilder;
+import org.firstinspires.ftc.teamcode.subsystems.VisionSubsystem.BackdropTarget;
 
 /**
  * Center-side auto with the same subsystems as TeleOp.
@@ -56,6 +57,7 @@ public class DecodeAuto_Center extends LinearOpMode {
         drive.setPoseEstimate(startPose);
         drive.resetHeading();
         detectedMotif = vision.getCurrentMotif();
+        vision.useAprilTags();
 
         // 1. drive straight to the backdrop
         Trajectory scoreBackdrop = new TrajectoryBuilder(startPose)
@@ -63,13 +65,29 @@ public class DecodeAuto_Center extends LinearOpMode {
                 .build();
         drive.followTrajectory(scoreBackdrop, this);
 
+        // Center on the correct column using AprilTags if available
+        BackdropTarget target = vision.getBackdropTarget(detectedMotif);
+        if (target != null) {
+            double strafe = Math.max(-10, Math.min(10, target.getLateralInches()));
+            drive.strafeWithHeading(strafe, 0.35, 0, this);
+        }
+
         // 2. raise slides and score
         slides.goToPreset(SlidePreset.HIGH);
-        while (opModeIsActive() && !slides.isAtTarget()) {
+        while (opModeIsActive() && !slides.isAtTarget() && !slides.isFaulted()) {
             telemetry.addData("Step", "Raising slides");
             telemetry.addData("Slide pos", slides.getAveragePosition());
+            if (target == null) {
+                target = vision.getBackdropTarget(detectedMotif);
+            }
+            telemetry.addData("Tag seen?", target != null);
             telemetry.update();
             idle();
+        }
+        if (slides.isFaulted()) {
+            telemetry.addData("Slide fault", slides.getFaultReason());
+            telemetry.update();
+            return;
         }
 
         gate.open();
