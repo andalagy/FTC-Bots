@@ -46,7 +46,10 @@ public class DecodeTeleOp extends LinearOpMode {
         telemetry.update();
 
         waitForStart();
-        if (isStopRequested()) return;
+        if (isStopRequested()) {
+            vision.stop();
+            return;
+        }
 
         // zero heading before moving so field-centric drive lines up with the real field
         drive.resetHeading();
