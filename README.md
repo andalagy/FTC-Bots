@@ -6,27 +6,8 @@ Fully functioning base code, tested, ready to plug in on the finished bot.  (min
 <br>I also wrote comments for all of you non code ppl out there
 <br>
 <br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
 
-lowkey im carrying here :Y
+
 
 ## How to build & run
 
@@ -36,3 +17,16 @@ lowkey im carrying here :Y
 4. Plug in the Robot Controller phone via USB.
 5. Click Run ▶ to install the app.
 6. Connect the Driver Station phone and select `DecodeTeleOp` (or other OpModes) to test on the real robot.
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+lowkey im carrying here :Y
